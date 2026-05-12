@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishWatch — Authenticate</title>
+  <link rel="icon" href="images/logo.jpeg">
+  <style>
+    :root {
+      --bg-page: #faf9f6;
+      --bg-card: #ffffff;
+      --accent: #ff5600;
+      --text-primary: #111111;
+      --text-muted: #7b7b78;
+      --error: #c41c1c;
+      --border: #dedbd6;
+    }
+    body {
+      background: var(--bg-page); color: var(--text-primary); font-family: system-ui, -apple-system, sans-serif;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 24px;
+    }
+    .auth-card {
+      background: var(--bg-card); padding: 40px; border-radius: 8px; 
+      border: 1px solid var(--border);
+      width: 100%; max-width: 420px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .auth-title { 
+      font-size: 32px; margin-bottom: 8px; color: var(--text-primary); text-align: center; 
+      font-weight: 400; line-height: 1.00; letter-spacing: -0.96px; 
+    }
+    .auth-title span { color: var(--accent); }
+    .card-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; text-align: center; }
+
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+    .tab-btn {
+      flex: 1; background: none; border: none; color: var(--text-muted); font-size: 15px; font-weight: 500;
+      padding: 12px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; margin-bottom: -1px;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn:hover:not(.active) { color: var(--text-primary); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .input-group { margin-bottom: 16px; }
+    .input-group label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-primary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+    .auth-input {
+      width: 100%; padding: 14px; background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-primary); font-family: system-ui, sans-serif; border-radius: 4px; box-sizing: border-box; outline: none; font-size: 16px;
+      transition: border-color 0.2s;
+    }
+    .auth-input::placeholder { color: var(--text-muted); }
+    .auth-input:focus { border-color: var(--text-primary); }
+    
+    .forgot-wrap { display: flex; justify-content: flex-end; margin-top: -8px; margin-bottom: 20px; }
+    .forgot-link { font-size: 13px; color: var(--text-muted); text-decoration: none; cursor: pointer; background: none; border: none; }
+    .forgot-link:hover { color: var(--text-primary); text-decoration: underline; }
+
+    .auth-btn {
+      width: 100%; padding: 14px; background: var(--text-primary); color: #ffffff; border: 1px solid var(--text-primary);
+      border-radius: 4px; font-weight: 400; cursor: pointer; transition: all 0.2s ease; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .auth-btn:hover:not(:disabled) { background: #ffffff; color: var(--text-primary); transform: scale(1.02); }
+    .auth-btn:active:not(:disabled) { transform: scale(0.98); }
+    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--text-muted); font-size: 13px; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .google-btn {
+      width: 100%; padding: 14px; background: #ffffff; color: var(--text-primary); border: 1px solid var(--border);
+      border-radius: 4px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; font-size: 16px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .google-btn:hover:not(:disabled) { background: #faf9f6; transform: scale(1.02); }
+    .google-btn:active:not(:disabled) { transform: scale(0.98); }
+    .google-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .msg-box { font-size: 14px; padding: 12px; border-radius: 4px; margin-bottom: 16px; display: none; text-align: center; }
+    .msg-box.error { background: #fff0f0; border: 1px solid #ffccd1; color: var(--error); }
+    .msg-box.success { background: #eaffe5; border: 1px solid #b8f2b1; color: #2c6415; }
+
+    .spinner { width: 16px; height: 16px; border: 2px solid transparent; border-top-color: currentColor; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .login-footer { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 20px; }
+
+    .strength-bar { display: flex; gap: 4px; margin-top: 8px; }
+    .strength-seg { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background 0.3s; }
+    .strength-label { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+  <div class="auth-card">
+    <div class="auth-title">Authenticate <span>PhishWatch</span></div>
+    <div class="card-sub">Sign in or create an account to access the AI phishing detector.</div>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      <button class="tab-btn" id="tab-register" onclick="switchTab('register')">Create Account</button>
+    </div>
+
+    <!-- ── Sign In Panel ── -->
+    <div class="tab-panel active" id="panel-login">
+      <div class="msg-box" id="login-msg"></div>
+
+      <div class="input-group">
+        <label>Email Address</label>
+        <input type="email" id="login-email" class="auth-input" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="login-pass" class="auth-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') emailSignIn()">
+      </div>
+
+      <div class="forgot-wrap">
+        <button class="forgot-link" onclick="sendPasswordReset()">Forgot password?</button>
+      </div>
+
+      <button class="auth-btn" id="login-btn" onclick="emailSignIn()">
+        <span id="login-btn-text">Access System</span>
+        <span class="spinner" id="login-spinner"></span>
+      </button>
+
+      <div class="divider">or continue with</div>
+
+      <button class="google-btn" id="google-login-btn" onclick="googleSignIn()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+
+    <!-- ── Register Panel ── -->
+    <div class="tab-panel" id="panel-register">
+      <div class="msg-box" id="register-msg"></div>
+
+      <div class="input-group">
+        <label>Email Address</label>
+        <input type="email" id="reg-email" class="auth-input" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="reg-pass" class="auth-input" placeholder="Min. 6 characters" autocomplete="new-password" oninput="checkStrength(this.value)">
+        <div class="strength-bar">
+          <div class="strength-seg" id="s1"></div>
+          <div class="strength-seg" id="s2"></div>
+          <div class="strength-seg" id="s3"></div>
+          <div class="strength-seg" id="s4"></div>
+        </div>
+        <div class="strength-label" id="strength-label"></div>
+      </div>
+      <div class="input-group">
+        <label>Confirm Password</label>
+        <input type="password" id="reg-pass2" class="auth-input" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter') emailRegister()">
+      </div>
+
+      <button class="auth-btn" id="reg-btn" onclick="emailRegister()" style="margin-top: 4px;">
+        <span id="reg-btn-text">Initialize Account</span>
+        <span class="spinner" id="reg-spinner"></span>
+      </button>
+
+      <div class="divider">or</div>
+
+      <button class="google-btn" id="google-reg-btn" onclick="googleSignIn()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign up with Google
+      </button>
+    </div>
+  </div>
+
+  <div class="login-footer">
+    Protected by Firebase Authentication &middot; PhishWatch &copy; <span id="yr"></span>
+  </div>
+
+<script type="module">
+  import { initializeApp }        from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+  import {
+    getAuth,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    GoogleAuthProvider,
+    signInWithPopup,
+    sendPasswordResetEmail
+  } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyAZvDCJjvDmA7ueN56C2uBlDfvUdWPQpas",
+    authDomain:        "phishing-detector-e7eef.firebaseapp.com",
+    projectId:         "phishing-detector-e7eef",
+    storageBucket:     "phishing-detector-e7eef.firebasestorage.app",
+    messagingSenderId: "205583296703",
+    appId:             "1:205583296703:web:fed57c2c71fa36ffc83e0a",
+    measurementId:     "G-Y5L4F8DZCF"
+  };
+
+  const app      = initializeApp(firebaseConfig);
+  const auth     = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  // If already logged in → go straight to app
+  onAuthStateChanged(auth, user => {
+    if (user) window.location.href = "index.html";
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function setLoading(btnId, spinnerId, on) {
+    const btn = document.getElementById(btnId);
+    const sp  = document.getElementById(spinnerId);
+    btn.disabled = on;
+    sp.style.display = on ? "inline-block" : "none";
+    document.getElementById(btnId + "-text").style.opacity = on ? 0 : 1;
+  }
+
+  function showMsg(id, text, type = "error") {
+    const el = document.getElementById(id);
+    el.textContent   = text;
+    el.className     = `msg-box ${type}`;
+    el.style.display = "block";
+  }
+
+  function hideMsg(id) {
+    document.getElementById(id).style.display = "none";
+  }
+
+  function friendlyError(err) {
+    const map = {
+      "auth/user-not-found":        "No account found with that email.",
+      "auth/wrong-password":        "Incorrect password. Try again.",
+      "auth/invalid-email":         "Enter a valid email address.",
+      "auth/email-already-in-use":  "An account already exists with this email.",
+      "auth/weak-password":         "Password must be at least 6 characters.",
+      "auth/popup-closed-by-user":  "Sign-in popup closed. Try again.",
+      "auth/network-request-failed":"Network error. Check your connection.",
+      "auth/too-many-requests":     "Too many attempts. Please wait a moment.",
+      "auth/invalid-credential":    "Email or password is incorrect.",
+    };
+    console.error("Firebase Auth Error:", err);
+    return map[err.code] ? `${map[err.code]} (${err.message})` : (err.code ? `Error: ${err.code} - ${err.message}` : "Something went wrong. Please try again.");
+  }
+
+  // ── Email Sign In ────────────────────────────────────────────────────
+  window.emailSignIn = async function() {
+    const email = document.getElementById("login-email").value.trim();
+    const pass  = document.getElementById("login-pass").value;
+    hideMsg("login-msg");
+
+    if (!email || !pass) {
+      showMsg("login-msg", "Please fill in all fields.");
+      return;
+    }
+
+    setLoading("login-btn", "login-spinner", true);
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+      window.location.href = "index.html";
+    } catch (err) {
+      showMsg("login-msg", friendlyError(err));
+    } finally {
+      setLoading("login-btn", "login-spinner", false);
+    }
+  };
+
+  // ── Email Register ───────────────────────────────────────────────────
+  window.emailRegister = async function() {
+    const email = document.getElementById("reg-email").value.trim();
+    const pass  = document.getElementById("reg-pass").value;
+    const pass2 = document.getElementById("reg-pass2").value;
+    hideMsg("register-msg");
+
+    if (!email || !pass || !pass2) {
+      showMsg("register-msg", "Please fill in all fields.");
+      return;
+    }
+    if (pass !== pass2) {
+      showMsg("register-msg", "Passwords do not match.");
+      return;
+    }
+    if (pass.length < 6) {
+      showMsg("register-msg", "Password must be at least 6 characters.");
+      return;
+    }
+
+    setLoading("reg-btn", "reg-spinner", true);
+    try {
+      await createUserWithEmailAndPassword(auth, email, pass);
+      window.location.href = "index.html";
+    } catch (err) {
+      showMsg("register-msg", friendlyError(err));
+    } finally {
+      setLoading("reg-btn", "reg-spinner", false);
+    }
+  };
+
+  // ── Google Sign In ───────────────────────────────────────────────────
+  window.googleSignIn = async function() {
+    try {
+      await signInWithPopup(auth, provider);
+      window.location.href = "index.html";
+    } catch (err) {
+      const panel = document.querySelector(".tab-panel.active").id;
+      const msgId = panel === "panel-login" ? "login-msg" : "register-msg";
+      showMsg(msgId, friendlyError(err));
+    }
+  };
+
+  // ── Password Reset ───────────────────────────────────────────────────
+  window.sendPasswordReset = async function() {
+    const email = document.getElementById("login-email").value.trim();
+    hideMsg("login-msg");
+
+    if (!email) {
+      showMsg("login-msg", "Enter your email above, then click 'Forgot password'.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showMsg("login-msg", "Password reset email sent! Check your inbox.", "success");
+    } catch (err) {
+      showMsg("login-msg", friendlyError(err));
+    }
+  };
+
+  // If user visits /login.html#register, swap to register tab immediately
+  if (window.location.hash === "#register") {
+    switchTab('register');
+  }
+</script>
+
+<script>
+  function switchTab(tab) {
+    document.querySelectorAll(".tab-btn").forEach((b, i) => {
+      b.classList.toggle("active", (i === 0 && tab === "login") || (i === 1 && tab === "register"));
+    });
+    document.getElementById("panel-login").classList.toggle("active", tab === "login");
+    document.getElementById("panel-register").classList.toggle("active", tab === "register");
+  }
+
+  function checkStrength(val) {
+    let score = 0;
+    if (val.length >= 6)  score++;
+    if (val.length >= 10) score++;
+    if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+    const colors = ["", "#c41c1c", "#ff9800", "#10b981", "#10b981"];
+    const labels = ["", "Weak", "Fair", "Good", "Strong"];
+    for (let i = 1; i <= 4; i++) {
+      document.getElementById("s" + i).style.background = i <= score ? colors[score] : "var(--border)";
+    }
+    const lbl = document.getElementById("strength-label");
+    lbl.textContent = val.length ? labels[score] : "";
+    lbl.style.color = colors[score];
+  }
+
+  document.getElementById("yr").textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

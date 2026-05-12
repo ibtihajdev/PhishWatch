@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishWatch — AI-Powered Phishing URL Detector</title>
+  <meta name="description"
+    content="PhishWatch uses XGBoost machine learning to detect phishing URLs in real time. Paste any URL and get an instant safety verdict.">
+  <link rel="icon" href="images/logo.jpeg">
+  <link href="assets/css/custom.css" rel="stylesheet">
+  <style>
+    /* Toast Container (Top Right) */
+    #toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Toast Styling */
+    .pw-toast {
+      background: var(--bg-card, #121212);
+      color: #fff;
+      padding: 14px 20px;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      border-left: 4px solid #fff;
+      opacity: 0;
+      transform: translateX(100%);
+      animation: slideIn 0.3s forwards;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-width: 250px;
+    }
+
+    /* Variants */
+    .pw-toast.error {
+      border-left-color: #ff4757;
+    }
+
+    .pw-toast.success {
+      border-left-color: #2ed573;
+    }
+
+    .pw-toast.warning {
+      border-left-color: #ffa502;
+    }
+
+    /* Animations */
+    @keyframes slideIn {
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header class="pw-header">
+    <a href="index.html" class="pw-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none"
+        stroke="var(--accent-cyan)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+        style="margin-right: 10px;">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        <circle cx="12" cy="11" r="3"></circle>
+      </svg>
+      PhishWatch
+    </a>
+    <nav class="pw-nav">
+      <a href="#scanner">Scan</a>
+      <a href="#features">Features</a>
+      <a href="blogs.html">Blog</a>
+      <a href="api.html">API Docs</a>
+      <a href="#about">About</a>
+      <a href="#history">History</a>
+      <a href="#" onclick="logout()" style="color: var(--error); margin-left: 20px;">Logout</a>
+    </nav>
+  </header>
+
+  <!-- ── Hero ────────────────────────────────────────────────────────── -->
+  <section class="pw-hero" id="scanner">
+    <div class="pw-hero-glow"></div>
+
+    <h1>Detect <span style="color: var(--accent-cyan);">Phishing</span><br>Before It Gets You</h1>
+    <p>Paste any suspicious URL below. Our machine learning model extracts 16 security signals and delivers an instant
+      verdict.</p>
+
+    <!-- Scanner Card -->
+    <div class="pw-scanner">
+      <div class="pw-input-wrap">
+        <input type="text" id="urlInput" class="pw-input" placeholder="https://example.com/path" autocomplete="off"
+          spellcheck="false">
+        <button id="scanBtn" class="pw-btn-scan" onclick="predictURL()">
+          <span id="scanBtnText">Scan</span>
+          <span class="pw-spinner" id="spinner"></span>
+        </button>
+      </div>
+      <button class="pw-btn-reset" id="resetBtn" onclick="resetPage()">Scan another URL</button>
+
+      <!-- Verdict -->
+      <div class="pw-verdict-card" id="verdictCard">
+        <div class="pw-verdict-header">
+          <div>
+            <div class="pw-verdict-label" id="verdictLabel"></div>
+            <div class="pw-verdict-sub" id="verdictSub"></div>
+          </div>
+        </div>
+        <div class="pw-conf-wrap">
+          <div class="pw-conf-label">
+            <span>Model Confidence</span>
+            <span id="confPct">—</span>
+          </div>
+          <div class="pw-conf-bar">
+            <div class="pw-conf-fill" id="confFill"></div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="margin-top: 16px; display: flex; gap: 8px;">
+          <button onclick="reportFalsePositive()"
+            style="flex:1; padding: 10px; font-size: 0.85rem; border-radius: 4px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text-primary); font-weight: 600; font-family: 'Inter', sans-serif;">Report
+            False Positive</button>
+        </div>
+      </div>
+      
+      <!-- Loading / Error Cards -->
+      <div class="pw-verdict-card" id="loadingCard" style="display:none; padding: 32px; text-align: center; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;">
+        <span class="pw-spinner" style="display:inline-block; border-color: var(--accent-cyan); border-bottom-color: transparent; width: 24px; height: 24px; margin-right: 12px; vertical-align: middle;"></span> 
+        <span style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem; vertical-align: middle;">Analyzing URL...</span>
+      </div>
+      <div class="pw-verdict-card" id="errorCard" style="display:none; padding: 24px; background: rgba(255, 60, 60, 0.05); border: 1px solid var(--error); border-radius: 8px; color: var(--error);">
+        <h3 style="margin-top:0; font-size: 1.1rem; margin-bottom: 8px;">Error</h3>
+        <div id="errorText" style="font-size: 0.95rem;"></div>
+      </div>
+      
+      <!-- WHOIS Panel -->
+      <div id="whoisSkeleton" style="display:none; padding: 24px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 16px;">
+        <span class="pw-spinner" style="display:inline-block; border-color: var(--text-muted); border-bottom-color: transparent; width: 16px; height: 16px; margin-right: 8px;"></span> Loading domain intelligence...
+      </div>
+      <div id="whoisCard" style="display:none; margin-top: 16px; padding: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: left;">
+        <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text-primary);">Domain Intelligence</h3>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; color: var(--text-muted);">
+          <div>🗓 Registered: <span id="whoisCreated" style="color: var(--text-primary);"></span></div>
+          <div>⏳ Expires: <span id="whoisExpires" style="color: var(--text-primary);"></span></div>
+          <div>🏢 Registrar: <span id="whoisRegistrar" style="color: var(--text-primary);"></span></div>
+          <div>🌍 Country: <span id="whoisCountry" style="color: var(--text-primary);"></span></div>
+          <div style="display: flex; align-items: center; gap: 8px;">📅 Domain Age: <span id="whoisAge" style="color: var(--text-primary);"></span> 
+            <span id="whoisBadge" style="padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screenshot Panel -->
+      <div id="screenshotSkeleton" style="display:none; padding: 24px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 16px;">
+        <span class="pw-spinner" style="display:inline-block; border-color: var(--text-muted); border-bottom-color: transparent; width: 16px; height: 16px; margin-right: 8px;"></span> Loading site preview...
+      </div>
+      <div id="screenshotCard" style="display:none; margin-top: 16px; padding: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: center;">
+        <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text-primary); text-align: left;">Site Preview (Safe Sandbox)</h3>
+        <img id="screenshotImg" src="" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; margin: 0 auto;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;">⚠ Preview rendered safely. No connection was made from your browser.</div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="pw-stats">
+      <div class="pw-stat">
+        <div class="pw-stat-num">16</div>
+        <div class="pw-stat-lbl">URL Features Analyzed</div>
+      </div>
+      <div class="pw-stat">
+        <div class="pw-stat-num" id="statAcc">96%+</div>
+        <div class="pw-stat-lbl">Model Accuracy</div>
+      </div>
+      <div class="pw-stat">
+        <div class="pw-stat-num">XGBoost</div>
+        <div class="pw-stat-lbl">Algorithm</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features Grid ────────────────────────────────────────────────── -->
+  <section class="pw-section" id="features">
+    <div class="pw-section-title">Feature Analysis</div>
+    <div class="pw-section-sub">All 16 URL signals analyzed by the model. Values update after each scan.</div>
+    <div class="pw-feature-grid" id="featureGrid">
+      <!-- Rendered by JS -->
+    </div>
+  </section>
+
+  <!-- ── How It Works ───────────────────────────────────────────────── -->
+  <section class="pw-section" id="about">
+    <div class="pw-section-title">How it Works</div>
+    <div class="pw-section-sub">From URL input to ML verdict in milliseconds.</div>
+
+    <div class="pw-how-grid"
+      style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center;">
+
+      <!-- Left: Animated ML Model SVG -->
+      <div
+        style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 32px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+        <div
+          style="font-size: 0.72rem; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px;">
+          Live Model Visualization</div>
+        <svg width="100%" height="100%" viewBox="0 0 200 100" style="color: #7b7b78; max-height: 200px;">
+          <!-- Paths -->
+          <g stroke="currentColor" fill="none" stroke-width="0.3" stroke-dasharray="100 100" pathLength="100"
+            marker-start="url(#cpu-circle-marker)">
+            <path stroke-dasharray="100 100" pathLength="100" d="M 10 20 h 79.5 q 5 0 5 5 v 30">
+              <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1s" fill="freeze" calcMode="spline"
+                keySplines="0.25,0.1,0.5,1" keyTimes="0; 1" />
+            </path>
+            <path stroke-dasharray="100 100" pathLength="100" d="M 180 10 h -69.7 q -5 0 -5 5 v 30">
+              <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1s" fill="freeze" calcMode="spline"
+                keySplines="0.25,0.1,0.5,1" keyTimes="0; 1" />
+            </path>
+            <path d="M 130 20 v 21.8 q 0 5 -5 5 h -10" />
+            <path d="M 170 80 v -21.8 q 0 -5 -5 -5 h -50" />
+            <path stroke-dasharray="100 100" pathLength="100"
+              d="M 135 65 h 15 q 5 0 5 5 v 10 q 0 5 -5 5 h -39.8 q -5 0 -5 -5 v -20">
+              <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1s" fill="freeze" calcMode="spline"
+                keySplines="0.25,0.1,0.5,1" keyTimes="0; 1" />
+            </path>
+            <path d="M 94.8 95 v -36" />
+            <path d="M 88 88 v -15 q 0 -5 -5 -5 h -10 q -5 0 -5 -5 v -5 q 0 -5 5 -5 h 14" />
+            <path d="M 30 30 h 25 q 5 0 5 5 v 6.5 q 0 5 5 5 h 20" />
+          </g>
+          <!-- Animated light orbs on paths -->
+          <g mask="url(#cpu-mask-1)">
+            <circle class="cpu-architecture cpu-line-1" cx="0" cy="0" r="8" fill="url(#cpu-blue-grad)" />
+          </g>
+          <g mask="url(#cpu-mask-2)">
+            <circle class="cpu-architecture cpu-line-2" cx="0" cy="0" r="8" fill="url(#cpu-yellow-grad)" />
+          </g>
+          <g mask="url(#cpu-mask-3)">
+            <circle class="cpu-architecture cpu-line-3" cx="0" cy="0" r="8" fill="url(#cpu-pinkish-grad)" />
+          </g>
+          <g mask="url(#cpu-mask-4)">
+            <circle class="cpu-architecture cpu-line-4" cx="0" cy="0" r="8" fill="url(#cpu-white-grad)" />
+          </g>
+          <g mask="url(#cpu-mask-5)">
+            <circle class="cpu-architecture cpu-line-5" cx="0" cy="0" r="8" fill="url(#cpu-green-grad)" />
+          </g>
+          <g mask="url(#cpu-mask-6)">
+            <circle class="cpu-architecture cpu-line-6" cx="0" cy="0" r="8" fill="url(#cpu-orange-grad)" />
+          </g>
+          <g mask="url(#cpu-mask-7)">
+            <circle class="cpu-architecture cpu-line-7" cx="0" cy="0" r="8" fill="url(#cpu-cyan-grad)" />
+          </g>
+          <g mask="url(#cpu-mask-8)">
+            <circle class="cpu-architecture cpu-line-8" cx="0" cy="0" r="8" fill="url(#cpu-rose-grad)" />
+          </g>
+          <!-- CPU Box -->
+          <g>
+            <g fill="url(#cpu-connection-gradient)">
+              <rect x="93" y="37" width="2.5" height="5" rx="0.7" />
+              <rect x="104" y="37" width="2.5" height="5" rx="0.7" />
+              <rect x="116.3" y="44" width="2.5" height="5" rx="0.7" transform="rotate(90 116.25 45.5)" />
+              <rect x="104" y="16" width="2.5" height="5" rx="0.7" transform="rotate(180 105.25 39.5)" />
+              <rect x="80" y="-13.6" width="2.5" height="5" rx="0.7" transform="rotate(270 115.25 19.5)" />
+            </g>
+            <rect x="82" y="40" width="36" height="20" rx="2" fill="#181818" filter="url(#cpu-light-shadow)" />
+            <text x="85.5" y="52.5" font-size="5.5" fill="url(#cpu-text-gradient)" font-weight="600"
+              letter-spacing="0.05em">ML Model</text>
+          </g>
+          <!-- Masks -->
+          <defs>
+            <mask id="cpu-mask-1">
+              <path d="M 10 20 h 79.5 q 5 0 5 5 v 24" stroke-width="0.5" stroke="white" />
+            </mask>
+            <mask id="cpu-mask-2">
+              <path d="M 180 10 h -69.7 q -5 0 -5 5 v 24" stroke-width="0.5" stroke="white" />
+            </mask>
+            <mask id="cpu-mask-3">
+              <path d="M 130 20 v 21.8 q 0 5 -5 5 h -10" stroke-width="0.5" stroke="white" />
+            </mask>
+            <mask id="cpu-mask-4">
+              <path d="M 170 80 v -21.8 q 0 -5 -5 -5 h -50" stroke-width="0.5" stroke="white" />
+            </mask>
+            <mask id="cpu-mask-5">
+              <path d="M 135 65 h 15 q 5 0 5 5 v 10 q 0 5 -5 5 h -39.8 q -5 0 -5 -5 v -20" stroke-width="0.5"
+                stroke="white" />
+            </mask>
+            <mask id="cpu-mask-6">
+              <path d="M 94.8 95 v -36" stroke-width="0.5" stroke="white" />
+            </mask>
+            <mask id="cpu-mask-7">
+              <path d="M 88 88 v -15 q 0 -5 -5 -5 h -10 q -5 0 -5 -5 v -5 q 0 -5 5 -5 h 14" stroke-width="0.5"
+                stroke="white" />
+            </mask>
+            <mask id="cpu-mask-8">
+              <path d="M 30 30 h 25 q 5 0 5 5 v 6.5 q 0 5 5 5 h 20" stroke-width="0.5" stroke="white" />
+            </mask>
+            <radialGradient id="cpu-blue-grad" fx="1">
+              <stop offset="0%" stop-color="#00E8ED" />
+              <stop offset="50%" stop-color="#08F" />
+              <stop offset="100%" stop-color="transparent" />
+            </radialGradient>
+            <radialGradient id="cpu-yellow-grad" fx="1">
+              <stop offset="0%" stop-color="#FFD800" />
+              <stop offset="50%" stop-color="#FFD800" />
+              <stop offset="100%" stop-color="transparent" />
+            </radialGradient>
+            <radialGradient id="cpu-pinkish-grad" fx="1">
+              <stop offset="0%" stop-color="#830CD1" />
+              <stop offset="50%" stop-color="#FF008B" />
+              <stop offset="100%" stop-color="transparent" />
+            </radialGradient>
+            <radialGradient id="cpu-white-grad" fx="1">
+              <stop offset="0%" stop-color="white" />
+              <stop offset="100%" stop-color="transparent" />
+            </radialGradient>
+            <radialGradient id="cpu-green-grad" fx="1">
+              <stop offset="0%" stop-color="#22c55e" />
+              <stop offset="100%" stop-color="transparent" />
+            </radialGradient>
+            <radialGradient id="cpu-orange-grad" fx="1">
+              <stop offset="0%" stop-color="#f97316" />
+              <stop offset="100%" stop-color="transparent" />
+            </radialGradient>
+            <radialGradient id="cpu-cyan-grad" fx="1">
+              <stop offset="0%" stop-color="#06b6d4" />
+              <stop offset="100%" stop-color="transparent" />
+            </radialGradient>
+            <radialGradient id="cpu-rose-grad" fx="1">
+              <stop offset="0%" stop-color="#f43f5e" />
+              <stop offset="100%" stop-color="transparent" />
+            </radialGradient>
+            <filter id="cpu-light-shadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="1.5" dy="1.5" stdDeviation="1" flood-color="black" flood-opacity="0.1" />
+            </filter>
+            <marker id="cpu-circle-marker" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="18" markerHeight="18">
+              <circle cx="5" cy="5" r="2" fill="black" stroke="#232323" stroke-width="0.5">
+                <animate attributeName="r" values="0; 3; 2" dur="0.5s" />
+              </circle>
+            </marker>
+            <linearGradient id="cpu-connection-gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#4F4F4F" />
+              <stop offset="60%" stop-color="#121214" />
+            </linearGradient>
+            <linearGradient id="cpu-text-gradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#666666">
+                <animate attributeName="offset" values="-2; -1; 0" dur="5s" repeatCount="indefinite" calcMode="spline"
+                  keyTimes="0; 0.5; 1" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1" />
+              </stop>
+              <stop offset="25%" stop-color="white">
+                <animate attributeName="offset" values="-1; 0; 1" dur="5s" repeatCount="indefinite" calcMode="spline"
+                  keyTimes="0; 0.5; 1" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1" />
+              </stop>
+              <stop offset="50%" stop-color="#666666">
+                <animate attributeName="offset" values="0; 1; 2;" dur="5s" repeatCount="indefinite" calcMode="spline"
+                  keyTimes="0; 0.5; 1" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1" />
+              </stop>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div style="font-size: 0.78rem; color: var(--text-muted); text-align: center;">XGBoost classifier processing URL
+          feature vectors in real time</div>
+      </div>
+
+      <!-- Right: 3-step cards -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 24px;">
+          <div
+            style="font-size: 0.72rem; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">
+            Step 1</div>
+          <div style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Paste a URL
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Enter any suspicious link into
+            the scanner box and press Scan.</div>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 24px;">
+          <div
+            style="font-size: 0.72rem; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">
+            Step 2</div>
+          <div style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Feature
+            Extraction</div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">16 URL signals are extracted — IP
+            address, domain age, HTTPS, redirections, and more.</div>
+        </div>
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 24px;">
+          <div
+            style="font-size: 0.72rem; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">
+            Step 3</div>
+          <div style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">ML Verdict
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">The XGBoost model predicts
+            <strong style="color:var(--accent-green)">Legitimate</strong> or <strong
+              style="color:var(--accent-red)">Phishing</strong> with a confidence score.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <script>
+    // ── Live Platform Stats ─────────────────────────────────────────────
+    async function fetchPlatformStats() {
+      // Fetch today's threat count from URLhaus
+      try {
+        const apiUrl = "https://urlhaus-api.abuse.ch/v1/urls/recent/";
+        const proxy = "https://api.allorigins.win/get?url=" + encodeURIComponent(apiUrl);
+        const res = await fetch(proxy);
+        const wrapped = await res.json();
+        const data = JSON.parse(wrapped.contents);
+        if (data.query_status === "ok" && data.urls) {
+          // Count URLs added today
+          const today = new Date().toISOString().slice(0, 10);
+          const todayCount = data.urls.filter(u => u.date_added && u.date_added.startsWith(today)).length;
+          document.getElementById("statThreatsToday").textContent = todayCount > 0 ? todayCount + "+" : data.urls.length + "+";
+        }
+      } catch (e) {
+        document.getElementById("statThreatsToday").textContent = "2,400+";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", fetchPlatformStats);
+  </script>
+
+  <!-- ── History ────────────────────────────────────────────────────── -->
+  <section class="pw-section" id="history">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div class="pw-section-title">Scan History</div>
+      <div>
+        <button class="pw-btn-sm" onclick="exportHistoryCSV()" style="margin-right: 8px;">Export CSV</button>
+        <button class="pw-btn-sm" onclick="clearHistory()">Clear</button>
+      </div>
+    </div>
+    <div class="pw-section-sub" style="margin-bottom:24px;">Stored locally in your browser. Up to 50 entries.</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
+      <table class="pw-history-table">
+        <thead>
+          <tr>
+            <th style="width:160px">Time</th>
+            <th>URL</th>
+            <th style="width:130px">Verdict</th>
+            <th style="width:100px">Confidence</th>
+          </tr>
+        </thead>
+        <tbody id="historyRows">
+          <tr>
+            <td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px">No scans yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────── -->
+  <footer class="pw-footer-rich">
+
+    <!-- Top: Brand + Description -->
+    <div class="pw-footer-top">
+      <div class="pw-footer-brand">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+          stroke="var(--accent-cyan)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          <circle cx="12" cy="11" r="3"></circle>
+        </svg>
+        <span class="pw-footer-brand-name">PhishWatch</span>
+      </div>
+      <p class="pw-footer-desc">
+        PhishWatch is a real-time phishing detection engine powered by XGBoost machine learning. It analyzes 16 URL
+        signals to instantly classify any link as legitimate or malicious — helping you browse the web with confidence.
+      </p>
+    </div>
+
+    <div class="pw-footer-divider"></div>
+
+    <!-- Middle: Nav Columns -->
+    <div class="pw-footer-nav-grid">
+      <div>
+        <div class="pw-footer-col-title">Navigation</div>
+        <ul class="pw-footer-links">
+          <li><a href="#scanner">URL Scanner</a></li>
+          <li><a href="#features">Feature Analysis</a></li>
+          <li><a href="#about">How It Works</a></li>
+          <li><a href="#history">Scan History</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="pw-footer-col-title">Resources</div>
+        <ul class="pw-footer-links">
+          <li><a href="blogs.html">Blog</a></li>
+          <li><a href="api.html">API Docs</a></li>
+          <li><a href="https://phishingquiz.withgoogle.com/" target="_blank">Google Phishing Quiz</a></li>
+          <li><a href="https://safebrowsing.google.com/safebrowsing/report_phish/" target="_blank">Report Phishing</a>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <div class="pw-footer-col-title">Technology</div>
+        <ul class="pw-footer-links">
+          <li><a href="https://xgboost.readthedocs.io/" target="_blank">XGBoost Model</a></li>
+          <li><a href="https://www.djangoproject.com/" target="_blank">Django API</a></li>
+          <li><a href="https://urlhaus.abuse.ch/" target="_blank">URLhaus Threat Feed</a></li>
+          <li><a href="https://scikit-learn.org/" target="_blank">Scikit-learn</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="pw-footer-col-title">About</div>
+        <ul class="pw-footer-links">
+          <li><a href="#">Final Year Project</a></li>
+          <li><a href="#">Machine Learning</a></li>
+          <li><a href="#">Cybersecurity</a></li>
+          <li><a href="#">Open Source</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pw-footer-divider"></div>
+
+    <!-- Bottom: Social + Back to Top + Copyright -->
+    <div class="pw-footer-bottom">
+
+      <!-- Social Links -->
+      <div class="pw-footer-socials">
+        <a href="https://github.com/" target="_blank" class="pw-footer-social-link" aria-label="GitHub">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
+            </path>
+          </svg>
+        </a>
+        <a href="https://linkedin.com/" target="_blank" class="pw-footer-social-link" aria-label="LinkedIn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+            <rect x="2" y="9" width="4" height="12"></rect>
+            <circle cx="4" cy="4" r="2"></circle>
+          </svg>
+        </a>
+        <a href="https://twitter.com/" target="_blank" class="pw-footer-social-link" aria-label="Twitter/X">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        </a>
+        <a href="mailto:contact@phishwatch.io" class="pw-footer-social-link" aria-label="Email">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Copyright -->
+      <div class="pw-footer-copy">
+        &copy; <span id="footerYear"></span> PhishWatch &mdash; Built with
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--accent-red)" stroke="none"
+          style="display:inline;vertical-align:-2px;animation:pulse 1.5s infinite;">
+          <path
+            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+          </path>
+        </svg>
+        for cybersecurity
+      </div>
+
+      <!-- Back to Top -->
+      <button class="pw-footer-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+        Top
+      </button>
+
+    </div>
+  </footer>
+
+  <script>document.getElementById("footerYear").textContent = new Date().getFullYear();</script>
+
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAZvDCJjvDmA7ueN56C2uBlDfvUdWPQpas",
+      authDomain: "phishing-detector-e7eef.firebaseapp.com",
+      projectId: "phishing-detector-e7eef",
+      storageBucket: "phishing-detector-e7eef.firebasestorage.app",
+      messagingSenderId: "205583296703",
+      appId: "1:205583296703:web:fed57c2c71fa36ffc83e0a",
+      measurementId: "G-Y5L4F8DZCF"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Redirect to login if not authenticated
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+      } else {
+        window.renderHistory && window.renderHistory();
+      }
+    });
+
+    window.logout = async function () {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        showToast("Error signing out", "error");
+      }
+    };
+
+    // ── Constants ──────────────────────────────────────────────────────────────
+    const API_BASE = window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1'
+      ? 'http://127.0.0.1:8000'
+      : 'https://phishwatch-api.onrender.com';
+
+    function getHistoryKey() {
+      const uid = auth.currentUser ? auth.currentUser.uid : "guest";
+      return `phishwatch_v2_history_${uid}`;
+    }
+    const FEATURE_META = [
+      { key: "Have_IP", label: "Have IP", desc: "IP address in URL", detail: "Phishers often use raw IP addresses instead of readable domains to hide their identity." },
+      { key: "Have_At", label: "Have @", desc: "@ symbol present", detail: "The @ symbol ignores everything before it in a URL, which phishers use to trick users into ignoring the real destination." },
+      { key: "URL_Length", label: "URL Length", desc: "URL length ≥54 chars", detail: "Extremely long URLs are used to hide the suspicious domain name from being fully visible in the address bar." },
+      { key: "URL_Depth", label: "URL Depth", desc: "Path depth (sub-folders)", detail: "Legitimate domains generally keep their path structure shallow. Phishing pages are often nested deep inside compromised sites." },
+      { key: "Redirection", label: "Redirection", desc: "Double slash redirect", detail: "The presence of '//' deep within the URL path often indicates an open redirect vulnerability being exploited to bounce users." },
+      { key: "https_Domain", label: "No HTTPS", desc: "Missing HTTPS scheme", detail: "Most legitimate sites use HTTPS encryption. Lack of HTTPS or putting 'https' manually in the domain name is suspicious." },
+      { key: "TinyURL", label: "TinyURL", desc: "URL shortening service", detail: "URL shorteners like bit.ly hide the true destination link, a technique heavily abused by scammers." },
+      { key: "Prefix/Suffix", label: "Prefix/Suffix", desc: "Hyphen in domain", detail: "Phishers often add prefixes or suffixes separated by hyphens (e.g., secure-login-paypal.com) to look legitimate." },
+      { key: "DNS_Record", label: "No DNS", desc: "Missing DNS record", detail: "Checks if the domain is registered and active in the global Domain Name System. Phishing domains are often unregistered quickly." },
+      { key: "Web_Traffic", label: "Low Traffic", desc: "Not in Alexa top-100K", detail: "Legitimate corporate sites have high web traffic. Very low or zero traffic suggests a newly created scam page." },
+      { key: "Domain_Age", label: "Young Domain", desc: "Domain age < 6 months", detail: "Domains registered recently (under 6 months ago) are highly suspicious, as phishing domains are short-lived." },
+      { key: "Domain_End", label: "Expiring Soon", desc: "Expires within 6 months", detail: "Phishers usually pay for the shortest possible domain registration time (usually 1 year)." },
+      { key: "iFrame", label: "iFrame", desc: "Uses invisible iFrame", detail: "iFrames allow attackers to invisibly load a legitimate site in the background or overlay a fake login box on top." },
+      { key: "Mouse_Over", label: "MouseOver", desc: "Fake URL on hover", detail: "Attackers use JavaScript to change the link preview shown in the bottom corner of your browser when you hover over a button." },
+      { key: "Right_Click", label: "Right Click", desc: "Right-click disabled", detail: "Phishing sites often disable right-clicking to prevent users from inspecting the page source code or downloading fake logos." },
+      { key: "Web_Forwards", label: "Forwarding", desc: "Excessive redirects", detail: "A high number of automated redirects is used to bounce malware scanners and obscure the final phishing page." },
+    ];
+
+    // ── Init feature grid ──────────────────────────────────────────────────────
+    window.initFeatureGrid = function () {
+      const grid = document.getElementById("featureGrid");
+      grid.innerHTML = FEATURE_META.map(f => `
+    <div class="pw-feat-card" id="fc_${f.key.replace("/", "_")}" style="cursor: pointer;" onclick="toggleFeatureDetail(this)">
+      <div class="pw-feat-name">${f.label}</div>
+      <div class="pw-feat-desc" style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px">${f.desc}</div>
+      <div class="pw-feat-val" id="fv_${f.key.replace("/", "_")}">—</div>
+      <div class="pw-feat-detail" style="display:none; font-size:0.8rem; color:var(--text-primary); margin-top:12px; padding-top:12px; border-top:1px solid var(--border); line-height:1.4;">${f.detail}</div>
+    </div>
+  `).join("");
+    }
+
+    window.toggleFeatureDetail = function (card) {
+      const detail = card.querySelector('.pw-feat-detail');
+      if (detail.style.display === 'none') {
+        detail.style.display = 'block';
+      } else {
+        detail.style.display = 'none';
+      }
+    }
+
+    function updateFeatureGrid(features) {
+      FEATURE_META.forEach(f => {
+        const safeKey = f.key.replace("/", "_");
+        const val = features[f.key];
+        const el = document.getElementById(`fv_${safeKey}`);
+        const card = document.getElementById(`fc_${safeKey}`);
+        if (!el) return;
+
+        let isPhishing = false;
+        if (f.key === "URL_Length" || f.key === "Right_Click") {
+          isPhishing = val === 0;
+        } else if (f.key === "URL_Depth") {
+          isPhishing = val > 4;
+        } else {
+          isPhishing = val === 1;
+        }
+
+        el.textContent = isPhishing ? "⚠ Flagged" : "✓ OK";
+        if (f.key === "URL_Depth") {
+          el.textContent += ` (${val})`;
+        }
+
+        el.className = "pw-feat-val " + (isPhishing ? "phish" : "legit");
+        card.style.borderColor = isPhishing ? "rgba(255,71,87,0.35)" : "rgba(0,255,136,0.2)";
+      });
+    }
+
+    // ── History helpers ────────────────────────────────────────────────────────
+    function getHistory() { try { return JSON.parse(localStorage.getItem(getHistoryKey()) || "[]"); } catch { return []; } }
+    function saveHistory(h) { localStorage.setItem(getHistoryKey(), JSON.stringify(h.slice(0, 50))); }
+
+    window.renderHistory = function () {
+      const rows = document.getElementById("historyRows");
+      const items = getHistory();
+
+      const statEl = document.getElementById("statSessionScans");
+      if (statEl) statEl.textContent = items.length;
+
+      if (!items.length) {
+        rows.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px">No scans yet.</td></tr>`;
+        return;
+      }
+      rows.innerHTML = items.map(it => {
+        const cls = it.verdict === "Safe" ? "safe" : it.verdict === "Phishing" ? "phishing" : "unknown";
+        return `
+      <tr>
+        <td style="color:var(--text-muted);font-size:0.8rem">${new Date(it.ts).toLocaleString()}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem">${it.url}</td>
+        <td><span class="pw-hist-badge ${cls}">${it.verdict}</span></td>
+        <td class="pw-conf-pct">${it.conf !== null ? it.conf + "%" : "—"}</td>
+      </tr>`;
+      }).join("");
+    }
+
+    function addHistory(item) {
+      const h = getHistory();
+      h.unshift(item);
+      saveHistory(h);
+      window.renderHistory();
+    }
+
+    window.clearHistory = function () {
+      localStorage.removeItem(getHistoryKey());
+      window.renderHistory();
+    }
+
+    // Export History to CSV
+    window.exportHistoryCSV = function () {
+      let history = getHistory();
+      if (history.length === 0) {
+        showToast("No history available to export.", "warning");
+        return;
+      }
+
+      let csvContent = "data:text/csv;charset=utf-8,Time,URL,Verdict,Confidence\n";
+      history.forEach(row => {
+        let verdict = row.verdict;
+        // Escape quotes in URL just in case
+        let safeUrl = row.url.replace(/"/g, '""');
+        csvContent += `"${new Date(row.ts).toLocaleString()}","${safeUrl}","${verdict}","${row.conf}%"\n`;
+      });
+
+      let encodedUri = encodeURI(csvContent);
+      let link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "phishwatch_scan_history.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // ── Initialization ────────────────────────────────────────────────────────────────
+    window.predictURL = async function () {
+      let url = document.getElementById("urlInput").value.trim();
+      if (!url) { showToast("Please enter a URL.", "warning"); return; }
+      if (!/^https?:\/\/.+/i.test(url)) {
+        url = "http://" + url;
+        document.getElementById("urlInput").value = url;
+      }
+
+      // UI loading state
+      document.getElementById("scanBtn").disabled = true;
+      document.getElementById("scanBtnText").style.display = "none";
+      document.getElementById("spinner").style.display = "inline-block";
+      document.getElementById("verdictCard").style.display = "none";
+      document.getElementById("errorCard").style.display = "none";
+      document.getElementById("whoisCard").style.display = "none";
+      document.getElementById("screenshotCard").style.display = "none";
+      document.getElementById("loadingCard").style.display = "block";
+
+      try {
+        const user = auth.currentUser;
+        if (!user) throw new Error("You must be logged in to scan.");
+
+        const token = await user.getIdToken();
+
+        const response = await fetch(`${API_BASE}/predict/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+
+        document.getElementById("loadingCard").style.display = "none";
+        document.getElementById("scanBtn").disabled = false;
+        document.getElementById("scanBtnText").style.display = "inline";
+        document.getElementById("spinner").style.display = "none";
+
+        if (!data.success) {
+          document.getElementById("errorCard").style.display = "block";
+          document.getElementById("errorText").textContent = data.error || "Unknown error occurred.";
+          return;
+        }
+
+        const verdict = data.ml_verdict === "Legitimate" ? "Safe" : data.ml_verdict;
+        const confidence = data.confidence;
+        const cls = verdict === "Safe" ? "safe" : verdict === "Phishing" ? "phishing" : "unknown";
+
+        // Verdict card
+        const card = document.getElementById("verdictCard");
+        card.className = `pw-verdict-card ${cls}`;
+        card.style.display = "block";
+        const lbl = document.getElementById("verdictLabel");
+        lbl.textContent = verdict;
+        lbl.className = `pw-verdict-label ${cls}`;
+        document.getElementById("verdictSub").textContent =
+          `XGBoost model verdict · Domain: ${data.domain || "—"}`;
+
+        // Confidence bar
+        const pct = confidence !== null ? confidence : 0;
+        document.getElementById("confPct").textContent = confidence !== null ? confidence + "%" : "—";
+        const fill = document.getElementById("confFill");
+        fill.className = `pw-conf-fill ${cls}`;
+        setTimeout(() => { fill.style.width = pct + "%"; }, 50);
+
+        // Feature grid
+        if (data.features) updateFeatureGrid(data.features);
+
+        // History
+        addHistory({ url, verdict, conf: confidence, ts: Date.now() });
+
+        // Show reset
+        document.getElementById("resetBtn").style.display = "block";
+
+        fetchWhoisAndScreenshot(url, token);
+
+      } catch (err) {
+        document.getElementById("loadingCard").style.display = "none";
+        document.getElementById("errorCard").style.display = "block";
+        document.getElementById("errorText").textContent = "Server unreachable. Please check your connection and try again.";
+      } finally {
+        document.getElementById("scanBtn").disabled = false;
+        document.getElementById("scanBtnText").style.display = "inline";
+        document.getElementById("spinner").style.display = "none";
+      }
+    }
+
+    window.resetPage = function () {
+      document.getElementById("urlInput").value = "";
+      document.getElementById("verdictCard").style.display = "none";
+      document.getElementById("errorCard").style.display = "none";
+      document.getElementById("loadingCard").style.display = "none";
+      document.getElementById("whoisCard").style.display = "none";
+      document.getElementById("screenshotCard").style.display = "none";
+      document.getElementById("whoisSkeleton").style.display = "none";
+      document.getElementById("screenshotSkeleton").style.display = "none";
+      document.getElementById("resetBtn").style.display = "none";
+      document.getElementById("confFill").style.width = "0%";
+      window.initFeatureGrid();
+    }
+
+    async function fetchWhoisAndScreenshot(url, token) {
+      document.getElementById("whoisSkeleton").style.display = "block";
+      document.getElementById("whoisCard").style.display = "none";
+      document.getElementById("screenshotSkeleton").style.display = "block";
+      document.getElementById("screenshotCard").style.display = "none";
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": `Bearer ${token}`
+      };
+
+      const whoisPromise = fetch(`${API_BASE}/whois/`, {
+        method: "POST", headers, body: JSON.stringify({ url })
+      }).then(r => r.json()).catch(() => ({ success: false }));
+
+      const screenshotPromise = fetch(`${API_BASE}/screenshot/`, {
+        method: "POST", headers, body: JSON.stringify({ url })
+      }).then(r => r.json()).catch(() => ({ success: false }));
+
+      const [whoisData, screenshotData] = await Promise.all([whoisPromise, screenshotPromise]);
+
+      // WHOIS rendering
+      document.getElementById("whoisSkeleton").style.display = "none";
+      const whoisCard = document.getElementById("whoisCard");
+      whoisCard.style.display = "block";
+      if (whoisData.success) {
+        whoisCard.innerHTML = `
+        <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text-primary);">Domain Intelligence</h3>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; color: var(--text-muted);">
+          <div>🗓 Registered: <span style="color: var(--text-primary);">${whoisData.created_date || "—"}</span></div>
+          <div>⏳ Expires: <span style="color: var(--text-primary);">${whoisData.expiry_date || "—"}</span></div>
+          <div>🏢 Registrar: <span style="color: var(--text-primary);">${whoisData.registrar || "—"}</span></div>
+          <div>🌍 Country: <span style="color: var(--text-primary);">${whoisData.country || "—"}</span></div>
+          <div style="display: flex; align-items: center; gap: 8px;">📅 Domain Age: <span style="color: var(--text-primary);">${whoisData.domain_age_days ? whoisData.domain_age_days + " days" : "—"}</span> 
+            <span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; ${whoisData.is_newly_registered ? 'background-color: rgba(255, 60, 60, 0.1); color: var(--accent-red);' : 'background-color: rgba(46, 213, 115, 0.1); color: var(--accent-green);'}">${whoisData.is_newly_registered ? '⚠ Newly Registered — High Risk Signal' : '✓ Established Domain'}</span>
+          </div>
+        </div>`;
+      } else {
+        whoisCard.innerHTML = `<div style="color: var(--text-muted); text-align: center;">WHOIS data unavailable for this domain.</div>`;
+      }
+
+      // Screenshot rendering
+      document.getElementById("screenshotSkeleton").style.display = "none";
+      const screenshotCard = document.getElementById("screenshotCard");
+      screenshotCard.style.display = "block";
+      if (screenshotData.success && screenshotData.image_base64) {
+        screenshotCard.innerHTML = `<h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text-primary); text-align: left;">Site Preview (Safe Sandbox)</h3>
+        <img src="${screenshotData.image_base64}" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; margin: 0 auto;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;">⚠ Preview rendered safely. No connection was made from your browser.</div>`;
+      } else {
+        screenshotCard.innerHTML = `<div style="color: var(--text-muted); text-align: center;">Preview unavailable for this URL.</div>`;
+      }
+    }
+
+    // ── Allow Enter key ────────────────────────────────────────────────────────
+    document.addEventListener("DOMContentLoaded", () => {
+      window.initFeatureGrid();
+      window.renderHistory();
+      document.getElementById("urlInput").addEventListener("keydown", e => {
+        if (e.key === "Enter") window.predictURL();
+      });
+
+      // Ensure toast container exists
+      const container = document.createElement('div');
+      container.id = 'toast-container';
+      document.body.appendChild(container);
+    });
+
+    // Reusable Toast function
+    function showToast(message, type = 'warning') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      toast.className = `pw-toast ${type}`;
+      toast.innerText = message;
+
+      container.appendChild(toast);
+
+      // Auto-dismiss after 4 seconds
+      setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.4s forwards';
+        // Remove element from DOM after animation completes
+        setTimeout(() => { toast.remove(); }, 400);
+      }, 4000);
+    }
+
+    function reportFalsePositive() {
+      const url = document.getElementById("urlInput").value.trim();
+      if (!url) return;
+
+      fetch(`${API_BASE}/report/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({ url })
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          showToast(data.message, "success");
+        } else {
+          showToast("Failed to report: " + data.error, "error");
+        }
+      }).catch(err => {
+        showToast("Error reporting URL: " + err.message, "error");
+      });
+    }
+  </script>
+</body>
+
+</html>

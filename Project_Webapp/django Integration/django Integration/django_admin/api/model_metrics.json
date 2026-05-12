@@ -1,0 +1,79 @@
+{
+  "accuracy": 82.9,
+  "cv_accuracy_mean": 82.38,
+  "cv_accuracy_std": 0.87,
+  "feature_names": [
+    "Have_IP",
+    "Have_At",
+    "URL_Length",
+    "URL_Depth",
+    "Redirection",
+    "https_Domain",
+    "TinyURL",
+    "Prefix/Suffix",
+    "DNS_Record",
+    "iFrame",
+    "Mouse_Over",
+    "Right_Click",
+    "Web_Forwards"
+  ],
+  "dropped_features": [
+    "Web_Traffic",
+    "Domain_Age",
+    "Domain_End"
+  ],
+  "feature_importances": {
+    "URL_Length": 0.7348002195358276,
+    "Prefix/Suffix": 0.126120924949646,
+    "Have_At": 0.04164818674325943,
+    "Have_IP": 0.021512355655431747,
+    "URL_Depth": 0.014829565770924091,
+    "iFrame": 0.014725706540048122,
+    "Web_Forwards": 0.012416386976838112,
+    "TinyURL": 0.009429490193724632,
+    "Mouse_Over": 0.009198622778058052,
+    "Redirection": 0.008023664355278015,
+    "DNS_Record": 0.007294842042028904,
+    "https_Domain": 0.0,
+    "Right_Click": 0.0
+  },
+  "classification_report": {
+    "Legitimate": {
+      "precision": 0.7906360424028268,
+      "recall": 0.895,
+      "f1-score": 0.8395872420262664,
+      "support": 1000.0
+    },
+    "Phishing": {
+      "precision": 0.8790322580645161,
+      "recall": 0.763,
+      "f1-score": 0.816916488222698,
+      "support": 1000.0
+    },
+    "accuracy": 0.829,
+    "macro avg": {
+      "precision": 0.8348341502336715,
+      "recall": 0.829,
+      "f1-score": 0.8282518651244822,
+      "support": 2000.0
+    },
+    "weighted avg": {
+      "precision": 0.8348341502336714,
+      "recall": 0.829,
+      "f1-score": 0.8282518651244822,
+      "support": 2000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      895,
+      105
+    ],
+    [
+      237,
+      763
+    ]
+  ],
+  "train_size": 8000,
+  "test_size": 2000
+}

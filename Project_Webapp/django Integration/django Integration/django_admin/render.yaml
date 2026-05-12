@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: phishwatch-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn django_admin.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: SECRET_KEY
+        sync: false
+      - key: SCREENSHOTLAYER_API_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Documentation - PhishWatch</title>
+  <link rel="stylesheet" href="assets/css/custom.css">
+  <style>
+    body {
+      background: var(--bg-primary);
+      padding-top: 130px;
+    }
+    .pw-api-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    .pw-api-header {
+      margin-bottom: 48px;
+    }
+    .pw-api-header h1 {
+      font-size: 54px;
+      letter-spacing: -1.6px;
+      line-height: 1.0;
+      margin-bottom: 16px;
+    }
+    .pw-api-header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+    .pw-endpoint-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 32px;
+      margin-bottom: 32px;
+    }
+    .pw-endpoint-title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .pw-method {
+      background: #111111;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .pw-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.1rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+    .pw-code-block {
+      background: #111111;
+      color: #faf9f6;
+      padding: 24px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+    .pw-code-comment { color: #7b7b78; }
+    .pw-code-string { color: #00ff88; }
+    .pw-code-key { color: #ff5600; }
+  </style>
+</head>
+<body>
+
+<!-- ── Live Threat Feed ────────────────────────────────────────────── -->
+<div class="pw-threat-feed">
+  <div style="display:flex; gap: 24px;">
+    <span style="color: var(--accent-cyan); font-weight: 700;">LIVE THREAT INTEL</span>
+    <marquee id="threatTicker" scrollamount="4" style="max-width: 600px; opacity: 0.8;">
+      Connecting to global threat network...
+    </marquee>
+  </div>
+  <div>System Status: <span style="color: #008a3c; font-weight: 700;">Operational</span></div>
+</div>
+
+<script>
+  // Fetch real live threats from URLhaus (abuse.ch) using a proxy to bypass CORS
+  async function fetchLiveThreats() {
+    const marquee = document.getElementById("threatTicker");
+    try {
+      const apiUrl = "https://urlhaus-api.abuse.ch/v1/urls/recent/";
+      const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(apiUrl);
+      
+      const res = await fetch(proxyUrl);
+      const proxyData = await res.json();
+      const data = JSON.parse(proxyData.contents);
+      
+      if (data.query_status === "ok" && data.urls) {
+        // Grab the 5 most recent threats
+        const threats = data.urls.slice(0, 5).map(u => {
+          let domain = "unknown domain";
+          try { domain = new URL(u.url).hostname; } catch(e) {}
+          return `[${u.date_added}] Blocked malicious payload distribution via (${domain})`;
+        });
+        marquee.innerHTML = threats.join(" &bull; ");
+      }
+    } catch(e) {
+      console.log("Failed to connect to threat feed API, using offline fallback.", e);
+      marquee.innerHTML = "[Offline] Blocked credential harvester (paypal-security-update.com) &bull; [Offline] Flagged Microsoft 365 clone (login-office365-verify.net)";
+    }
+  }
+  document.addEventListener("DOMContentLoaded", fetchLiveThreats);
+</script>
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header class="pw-header">
+    <a href="index.html" class="pw-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 10px;">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        <circle cx="12" cy="11" r="3"></circle>
+      </svg>
+      PhishWatch
+    </a>
+    <nav class="pw-nav">
+      <a href="index.html#scanner">Scan</a>
+      <a href="index.html#features">Features</a>
+      <a href="blogs.html">Blog</a>
+      <a href="api.html" style="color: var(--accent-cyan);">API Docs</a>
+      <a href="index.html#about">About</a>
+      <a href="index.html#history">History</a>
+    </nav>
+  </header>
+
+  <!-- ── API Content ─────────────────────────────────────────────────── -->
+  <div class="pw-api-container">
+    <div class="pw-api-header">
+      <h1>Developer API</h1>
+      <p>Integrate PhishWatch's XGBoost detection engine directly into your own applications, firewalls, or browser extensions using our REST API.</p>
+    </div>
+
+    <div class="pw-endpoint-card">
+      <div class="pw-endpoint-title">
+        <span class="pw-method">POST</span>
+        <span class="pw-url">/predict/</span>
+      </div>
+      <p style="color: var(--text-muted); margin-bottom: 16px; line-height: 1.6;">
+        Submit a URL for real-time analysis. The API extracts 16 features on the fly, runs them through the XGBoost model, and returns a JSON verdict with confidence scoring.
+      </p>
+
+      <h4 style="margin-bottom: 8px;">Request Format (cURL)</h4>
+      <div class="pw-code-block" style="margin-bottom: 24px;">
+curl -X POST <span class="pw-code-string">http://127.0.0.1:8000/predict/</span> \
+  -H <span class="pw-code-string">"Content-Type: application/x-www-form-urlencoded"</span> \
+  -d <span class="pw-code-string">"url=https://secure-login-update.com"</span>
+      </div>
+
+      <h4 style="margin-bottom: 8px;">Response Payload (JSON)</h4>
+      <div class="pw-code-block">
+{
+  <span class="pw-code-key">"url"</span>: <span class="pw-code-string">"https://secure-login-update.com"</span>,
+  <span class="pw-code-key">"is_phishing"</span>: true,
+  <span class="pw-code-key">"confidence"</span>: 96.4,
+  <span class="pw-code-key">"features"</span>: {
+    <span class="pw-code-comment">"// 16 extracted structural features"</span>
+    <span class="pw-code-key">"URL_Length"</span>: 1,
+    <span class="pw-code-key">"Having_@_symbol"</span>: 0,
+    <span class="pw-code-key">"Prefix_Suffix"</span>: 1,
+    <span class="pw-code-comment">"...and 13 more"</span>
+  }
+}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────── -->
+  <footer class="pw-footer">
+    <p>PhishWatch &copy; 2026 — Final Year Project</p>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-World Phishing Hacks — PhishWatch</title>
+  <link rel="icon" href="images/logo.jpeg">
+  <link href="assets/css/custom.css" rel="stylesheet">
+  <style>
+    .pw-blog-container {
+      max-width: 900px;
+      margin: 100px auto 40px;
+      padding: 0 20px;
+    }
+    .pw-blog-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    .pw-blog-header h1 {
+      font-family: 'Inter', sans-serif;
+      font-size: 80px;
+      font-weight: 500;
+      line-height: 1.0;
+      letter-spacing: -2.4px;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+    .pw-blog-header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+    .pw-blog-post {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      margin-bottom: 40px;
+      transition: transform 0.2s;
+    }
+    .pw-blog-post:hover {
+      border-color: var(--accent-cyan);
+    }
+    .pw-blog-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+    }
+    .pw-blog-title {
+      font-size: 1.8rem;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+    .pw-blog-content {
+      color: var(--text-muted);
+      line-height: 1.8;
+      font-size: 1.05rem;
+    }
+    .pw-blog-content p {
+      margin-bottom: 16px;
+    }
+    .pw-blog-impact {
+      margin-top: 24px;
+      padding: 16px;
+      background: rgba(255, 71, 87, 0.1);
+      border-left: 4px solid var(--accent-red);
+      border-radius: 0 8px 8px 0;
+    }
+    .pw-blog-impact strong {
+      color: var(--accent-red);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Live Threat Feed ────────────────────────────────────────────── -->
+<div class="pw-threat-feed">
+  <div style="display:flex; gap: 24px;">
+    <span style="color: var(--accent-cyan); font-weight: 700;">LIVE THREAT INTEL</span>
+    <marquee id="threatTicker" scrollamount="4" style="max-width: 600px; opacity: 0.8;">
+      Connecting to global threat network...
+    </marquee>
+  </div>
+  <div>System Status: <span style="color: #008a3c; font-weight: 700;">Operational</span></div>
+</div>
+
+<script>
+  // Fetch real live threats from URLhaus (abuse.ch) using a proxy to bypass CORS
+  async function fetchLiveThreats() {
+    const marquee = document.getElementById("threatTicker");
+    try {
+      const apiUrl = "https://urlhaus-api.abuse.ch/v1/urls/recent/";
+      const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(apiUrl);
+      
+      const res = await fetch(proxyUrl);
+      const proxyData = await res.json();
+      const data = JSON.parse(proxyData.contents);
+      
+      if (data.query_status === "ok" && data.urls) {
+        // Grab the 5 most recent threats
+        const threats = data.urls.slice(0, 5).map(u => {
+          let domain = "unknown domain";
+          try { domain = new URL(u.url).hostname; } catch(e) {}
+          return `[${u.date_added}] Blocked malicious payload distribution via (${domain})`;
+        });
+        marquee.innerHTML = threats.join(" &bull; ");
+      }
+    } catch(e) {
+      console.log("Failed to connect to threat feed API, using offline fallback.", e);
+      marquee.innerHTML = "[Offline] Blocked credential harvester (paypal-security-update.com) &bull; [Offline] Flagged Microsoft 365 clone (login-office365-verify.net)";
+    }
+  }
+  document.addEventListener("DOMContentLoaded", fetchLiveThreats);
+</script>
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header class="pw-header">
+  <a href="index.html" class="pw-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 10px;">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      <circle cx="12" cy="11" r="3"></circle>
+    </svg>
+    PhishWatch
+  </a>
+  <nav class="pw-nav">
+    <a href="index.html#scanner">Scan</a>
+    <a href="index.html#features">Features</a>
+    <a href="blogs.html" style="color:var(--accent-cyan)">Blog</a>
+    <a href="index.html#about">About</a>
+    <a href="index.html#history">History</a>
+  </nav>
+</header>
+
+<main class="pw-blog-container">
+  <div class="pw-blog-header">
+    <h1>The Anatomy of Phishing</h1>
+    <p>How a single click brought down governments, corporations, and massive networks.</p>
+  </div>
+
+  <article class="pw-blog-post">
+    <div class="pw-blog-meta">TARGET: 2016 US PRESIDENTIAL ELECTION</div>
+    <h2 class="pw-blog-title">The John Podesta Bitly Hack</h2>
+    <div class="pw-blog-content">
+      <p>In March 2016, John Podesta, the chairman of Hillary Clinton's presidential campaign, received an alarming email. It appeared to be an official security alert from Google, warning him that someone in Ukraine had his password and that he needed to change it immediately.</p>
+      <p>The email contained a "Change Password" button. However, the link didn't go to Google. It went to a Bitly shortened URL (a common phishing tactic) which redirected to a fake Google login page controlled by Russian state-sponsored hackers (Fancy Bear).</p>
+      <p>An IT staffer reviewed the email and made a fatal typo, replying that the email was "legitimate" instead of "illegitimate." Podesta clicked the link, entered his credentials, and gave hackers access to over 60,000 private emails.</p>
+      <div class="pw-blog-impact">
+        <strong>The Impact:</strong> The stolen emails were released via WikiLeaks in the weeks leading up to the election, causing immense political damage and dominating the news cycle. A single malicious link shifted the course of global politics.
+      </div>
+    </div>
+  </article>
+
+  <article class="pw-blog-post">
+    <div class="pw-blog-meta">TARGET: RSA SECURITY (2011)</div>
+    <h2 class="pw-blog-title">The "2011 Recruitment Plan" Excel File</h2>
+    <div class="pw-blog-content">
+      <p>RSA Security was one of the premier cybersecurity companies in the world, responsible for the SecurID two-factor authentication tokens used by defense contractors, banks, and the military.</p>
+      <p>Attackers sent two targeted spear-phishing emails to small groups of RSA employees over a period of two days. The email subject line was simply "2011 Recruitment Plan," and attached to it was an Excel spreadsheet.</p>
+      <p>When an employee opened the spreadsheet, it executed a zero-day vulnerability in Adobe Flash (which was embedded in the Excel file). The malware installed a backdoor (Poison Ivy RAT), giving the attackers a foothold inside RSA's corporate network.</p>
+      <div class="pw-blog-impact">
+        <strong>The Impact:</strong> Hackers stole the "seed values" for the SecurID tokens. Months later, those stolen seeds were used to bypass two-factor authentication and hack into U.S. defense contractor Lockheed Martin. RSA had to spend $66 million to replace 40 million hardware tokens for customers worldwide.
+      </div>
+    </div>
+  </article>
+
+  <article class="pw-blog-post">
+    <div class="pw-blog-meta">TARGET: UBIQUITI NETWORKS (2015)</div>
+    <h2 class="pw-blog-title">The $46 Million Executive Impersonation</h2>
+    <div class="pw-blog-content">
+      <p>In 2015, Ubiquiti Networks, an American technology company, fell victim to a highly sophisticated "Business Email Compromise" (BEC) phishing attack. This didn't involve malware or malicious links—it relied purely on social engineering.</p>
+      <p>Attackers researched the company's hierarchy and impersonated the CEO and a prominent lawyer. They sent highly targeted emails to the company's finance department in Hong Kong, claiming there was a strictly confidential corporate acquisition underway.</p>
+      <p>The emails directed the finance employees to wire millions of dollars to overseas bank accounts to fund the "secret acquisition." Because the emails looked like they came directly from the CEO (using a slightly altered lookalike domain), the employees complied.</p>
+      <div class="pw-blog-impact">
+        <strong>The Impact:</strong> By the time the fraud was discovered, Ubiquiti had wired $46.7 million to accounts in Russia, Hungary, China, and Poland. They were only able to recover about $8 million.
+      </div>
+    </div>
+  </article>
+
+  <article class="pw-blog-post">
+    <div class="pw-blog-meta">TARGET: SONY PICTURES ENTERTAINMENT (2014)</div>
+    <h2 class="pw-blog-title">The Fake Apple ID Verification</h2>
+    <div class="pw-blog-content">
+      <p>Before releasing the devastating wiper malware that erased Sony's servers and leaked unreleased movies, the "Guardians of Peace" (later attributed to North Korea) needed a way inside the network.</p>
+      <p>They spent months targeting top Sony executives (including the CEO, Michael Lynton) with sophisticated spear-phishing emails. Many of these emails appeared to be from Apple, asking the executives to "verify their Apple ID" by clicking a link.</p>
+      <p>The link took them to a fake Apple login page. Because many executives used the same passwords for their personal Apple IDs and their corporate Sony accounts, the hackers easily gathered the credentials needed to access Sony's internal systems.</p>
+      <div class="pw-blog-impact">
+        <strong>The Impact:</strong> Complete network destruction. Attackers leaked executive salaries, embarrassing internal emails, unreleased blockbuster films, and personal data of 47,000 employees. The attack cost Sony an estimated $100 million.
+      </div>
+    </div>
+  </article>
+
+</main>
+
+<!-- ── Footer ──────────────────────────────────────────────────────── -->
+<footer class="pw-footer">
+  <p>PhishWatch &copy; 2026 — Final Year Project &nbsp;|&nbsp;
+  <a href="https://phishingquiz.withgoogle.com/" target="_blank">Take Google's Phishing Quiz</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+django
+djangorestframework
+django-cors-headers
+beautifulsoup4
+python-whois
+requests
+lxml
+scikit-learn
+numpy
+pandas
+xgboost
+django-redis
+redis
