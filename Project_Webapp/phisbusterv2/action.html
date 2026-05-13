@@ -402,7 +402,8 @@
       });
       const target = document.getElementById(id);
       if (target) {
-        target.style.display = 'flex';
+        // resetForm is a block container; state panels use flex for centering
+        target.style.display = (id === 'resetForm') ? 'block' : 'flex';
         target.classList && target.classList.add('visible');
       }
     }
