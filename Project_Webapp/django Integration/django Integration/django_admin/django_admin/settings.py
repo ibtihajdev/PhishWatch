@@ -176,13 +176,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-insecure-key-for-dev')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-import os
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
     '.onrender.com',
+    '.railway.app',
+    'phishwatch-production.up.railway.app',
 ]
 
 #######added code..........
@@ -334,12 +335,12 @@ STATICFILES_DIRS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5500",
     "http://127.0.0.1:5500",
-    "https://your-app-name.netlify.app",
+    "https://phishwatchwebapp.netlify.app",
 ]
 CORS_ALLOW_METHODS = ["GET", "POST", "OPTIONS"]
 CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "Accept", "X-CSRFToken"]
 CORS_ALLOW_CREDENTIALS = False 
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 AUTH_USER_MODEL = 'api.CustomUser'
 
