@@ -1079,3 +1079,408 @@ body::before {
 .pw-stat-value {
   font-weight: 500;
 }
+/* Hide hamburger on desktop */
+.hamburger-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  z-index: 1001;
+}
+
+.hamburger-btn span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.hamburger-btn.is-open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger-btn.is-open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-btn.is-open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Hide mobile menu by default */
+.mobile-menu {
+  display: none;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  width: 100%;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  background: var(--bg-primary);
+}
+
+/* Open state */
+.mobile-menu.menu-open {
+  max-height: 500px;
+}
+
+.mobile-menu a, .mobile-menu div#mobileProfileSection {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 16px;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mobile-menu a:last-child {
+  border-bottom: none;
+}
+
+/* Mobile breakpoint */
+@media (max-width: 768px) {
+  .pw-header {
+    position: relative;
+  }
+
+  /* Show hamburger */
+  .hamburger-btn {
+    display: flex;
+  }
+
+  /* Hide desktop navbar links */
+  .pw-nav {
+    display: none;
+  }
+
+  /* Show mobile menu */
+  .mobile-menu {
+    display: block;
+  }
+}
+
+/* ============================================
+   RESPONSIVE STYLES  DO NOT EDIT ABOVE THIS
+   ============================================ */
+
+/* TASK 1: Global Responsive Fixes */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+img, video, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Tablet (max-width: 1023px) */
+@media (max-width: 1023px) {
+  /* TASK 2: Navbar Responsive */
+  .pw-logo {
+    font-size: 80% !important;
+  }
+
+  /* TASK 3: Hero / Landing Section Responsive */
+  .pw-hero h1 {
+    font-size: 2rem !important;
+  }
+  .pw-hero p {
+    font-size: 1rem !important;
+  }
+  .pw-hero > div, .pw-scanner {
+    max-width: 90% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .pw-hero {
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  /* TASK 5: Result Card Responsive */
+  .pw-verdict-card {
+    padding: 24px !important;
+  }
+  .pw-verdict-label, .pw-verdict-sub {
+    font-size: 90% !important;
+  }
+
+  /* TASK 6: Feature Breakdown Section Responsive */
+  .pw-feature-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* TASK 10: Spacing and Padding Responsive */
+  .pw-section {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+    margin-bottom: 24px !important;
+  }
+  .pw-verdict-card, .pw-feat-card, #whoisCard, #screenshotCard {
+    margin-bottom: 24px !important;
+  }
+}
+
+/* Mobile (max-width: 768px) */
+@media (max-width: 768px) {
+  /* TASK 2: Navbar Responsive */
+  .pw-logo {
+    font-size: 80% !important;
+  }
+  .pw-header {
+    padding: 12px 16px !important;
+    height: auto !important;
+  }
+
+  /* TASK 3: Hero / Landing Section Responsive */
+  .pw-hero {
+    padding: 40px 16px !important;
+  }
+  .pw-hero h1 {
+    font-size: 2.5rem !important;
+  }
+  .pw-hero p {
+    font-size: 0.9rem !important;
+  }
+  .pw-scanner {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* TASK 4: URL Input + Scan Button Responsive */
+  .pw-input-wrap {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+  .pw-input {
+    width: 100% !important;
+    border-radius: 8px !important;
+  }
+  .pw-btn-scan {
+    width: 100% !important;
+    margin-top: 10px !important;
+    border-radius: 8px !important;
+  }
+
+  /* TASK 5: Result Card Responsive */
+  .pw-verdict-card {
+    width: 100% !important;
+    padding: 20px 16px !important;
+    text-align: center !important;
+  }
+  .pw-verdict-header {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  .pw-verdict-header svg, .pw-verdict-header img {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  .pw-conf-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  .pw-conf-label span, #statAcc {
+    font-size: 2rem !important;
+  }
+
+  /* TASK 6: Feature Breakdown Section Responsive */
+  .pw-feature-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .pw-feat-card {
+    width: 100% !important;
+    padding: 16px !important;
+  }
+
+  /* TASK 7: WHOIS Panel Responsive */
+  #whoisCard {
+    width: 100% !important;
+  }
+  #whoisCard > div {
+    flex-direction: column !important;
+  }
+  #whoisCard > div > div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    font-size: 0.85rem !important;
+    word-break: break-all;
+  }
+  #whoisCard span {
+    font-size: 0.95rem !important;
+  }
+  #whoisBadge {
+    white-space: normal !important;
+    display: inline-block !important;
+  }
+
+  /* TASK 8: Screenshot Preview Responsive */
+  #screenshotCard {
+    width: 100% !important;
+  }
+  #screenshotImg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  #screenshotCard div {
+    text-align: center !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* TASK 9: Typography Responsive Scale */
+  h1 { font-size: clamp(1.3rem, 5vw, 2rem) !important; }
+  h2 { font-size: clamp(1.1rem, 4vw, 1.6rem) !important; }
+  h3 { font-size: clamp(1rem, 3.5vw, 1.3rem) !important; }
+  p  { font-size: clamp(0.85rem, 2.5vw, 1rem) !important; }
+
+  /* TASK 10: Spacing and Padding Responsive */
+  .pw-section, .pw-scanner, .pw-verdict-card, #whoisCard, #screenshotCard, .pw-feat-card {
+    max-width: 100% !important;
+  }
+  section, .pw-section {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .pw-verdict-card, .pw-feat-card, #whoisCard, #screenshotCard {
+    margin-bottom: 16px !important;
+  }
+
+  /* TASK 11: Modal / Profile Panel Responsive */
+  .pw-profile-modal {
+    width: 92vw !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    border-radius: 12px !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+  .pw-modal-close {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 10px !important;
+  }
+
+  /* TASK 12: Footer Responsive */
+  .pw-footer-rich {
+    padding: 24px 16px !important;
+  }
+  .pw-footer-top {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .pw-footer-nav-grid {
+    grid-template-columns: 1fr !important;
+    text-align: center !important;
+  }
+  .pw-footer-bottom {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .pw-footer-links li {
+    text-align: center !important;
+  }
+  .pw-footer-desc, .pw-footer-col-title, .pw-footer-links a, .pw-footer-copy {
+    font-size: 0.85rem !important;
+  }
+
+  /* TASK 13: Fix Common Mobile Issues */
+  /* Tap targets */
+  .pw-btn-sm, .pw-btn-scan, .pw-btn-reset, .hamburger-btn, .pw-modal-close, .pw-footer-social-link {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Tables horizontally scrollable */
+  .pw-history-table {
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+  }
+  
+  /* Prevent flex row overflows */
+  .pw-stat-num {
+    font-size: 42px !important;
+    letter-spacing: -1px !important;
+  }
+  .pw-stats {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+  }
+  .pw-stat {
+    width: 100% !important;
+  }
+}
+
+/* Small (max-width: 480px) */
+@media (max-width: 480px) {
+  /* TASK 3: Hero / Landing Section Responsive */
+  .pw-stat-num {
+    font-size: 32px !important;
+    letter-spacing: -0.8px !important;
+  }
+  .pw-hero h1 {
+    font-size: 2.2rem !important; line-height: 1.1 !important;
+  }
+  .pw-hero {
+    text-align: center !important;
+    padding: 24px 12px !important;
+  }
+  .pw-scanner, .pw-section {
+    padding: 24px 12px !important;
+  }
+}
+
+/* ============================================
+   LUCIDE ICONS STYLES
+   ============================================ */
+
+/* Lucide Icons Base */
+[data-lucide] {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Size Variants */
+.icon-sm { width: 14px; height: 14px; }
+.icon-md { width: 18px; height: 18px; }
+.icon-lg { width: 24px; height: 24px; }
+.icon-xl { width: 32px; height: 32px; }
+.icon-2xl { width: 48px; height: 48px; }
+
+/* Color Variants */
+.icon-success { stroke: #22c55e; }
+.icon-danger  { stroke: #ef4444; }
+.icon-warning { stroke: #f59e0b; }
+.icon-muted   { stroke: rgba(255,255,255,0.4); }
+.icon-white   { stroke: #ffffff; }

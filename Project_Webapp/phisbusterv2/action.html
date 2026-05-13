@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishWatch — Reset Your Password</title>
+  <meta name="description" content="Securely reset your PhishWatch account password.">
+  <link rel="icon" href="images/logo.jpeg">
+  <link href="assets/css/custom.css?v=9" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+  <style>
+    /* ---- Page Layout ---- */
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: var(--bg-primary);
+    }
+
+    /* ---- Minimal Header ---- */
+    .action-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .action-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .action-logo img {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+    .action-logo-text {
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+    }
+    .action-logo-text span {
+      color: var(--accent-cyan);
+    }
+
+    /* ---- Card ---- */
+    .action-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+
+    .action-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 36px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.06);
+    }
+
+    .action-icon-wrap {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      background: rgba(255, 86, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .action-card h1 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .action-card p.subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    /* ---- Form ---- */
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+
+    .pw-field-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .pw-input {
+      width: 100%;
+      padding: 11px 44px 11px 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.92rem;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .pw-input:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .pw-toggle-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      padding: 0;
+    }
+    .pw-toggle-btn:hover { color: var(--text-primary); }
+
+    /* ---- Password Strength ---- */
+    .strength-wrap {
+      margin-top: 8px;
+    }
+    .strength-bar-row {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .strength-seg {
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    .strength-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* ---- Submit Btn ---- */
+    .action-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--text-primary);
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .action-btn:hover { opacity: 0.85; }
+    .action-btn:active { transform: scale(0.98); }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---- State Panels ---- */
+    .state-panel {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 12px 0;
+    }
+    .state-panel.visible { display: flex; }
+
+    .state-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .state-icon.success { background: rgba(0, 138, 60, 0.1); }
+    .state-icon.error   { background: rgba(196, 28, 28, 0.1); }
+
+    .state-panel h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+      margin-bottom: 8px;
+    }
+    .state-panel p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      background: var(--text-primary);
+      color: #fff;
+      border-radius: 8px;
+      font-size: 0.87rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .back-btn:hover { opacity: 0.8; }
+
+    /* ---- Loading spinner ---- */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Error hint ---- */
+    .field-error {
+      font-size: 0.78rem;
+      color: var(--accent-red);
+      margin-top: 5px;
+      display: none;
+    }
+    .field-error.visible { display: block; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 480px) {
+      .action-card { padding: 28px 20px; border-radius: 12px; }
+      .action-card h1 { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Minimal Header -->
+  <header class="action-header">
+    <a href="index.html" class="action-logo">
+      <img src="images/logo.jpeg" alt="PhishWatch logo">
+      <span class="action-logo-text">Phish<span>Watch</span></span>
+    </a>
+  </header>
+
+  <!-- Main Content -->
+  <div class="action-wrap">
+    <div class="action-card">
+
+      <!-- === LOADING STATE (shown while verifying oobCode) === -->
+      <div class="state-panel visible" id="loadingState">
+        <div class="state-icon" style="background: rgba(255,86,0,0.08);">
+          <div class="spinner" style="border-color: rgba(255,86,0,0.3); border-top-color: var(--accent-cyan);"></div>
+        </div>
+        <h2>Verifying link…</h2>
+        <p>Please wait while we verify your password reset link.</p>
+      </div>
+
+      <!-- === RESET FORM (shown when oobCode is valid) === -->
+      <div id="resetForm" style="display:none;">
+        <div class="action-icon-wrap">
+          <i data-lucide="key-round" style="width:24px;height:24px;stroke:var(--accent-cyan);stroke-width:2;fill:none;"></i>
+        </div>
+        <h1>Set new password</h1>
+        <p class="subtitle">Choose a strong password for your PhishWatch account. You'll use it to sign in.</p>
+
+        <form id="pwForm" novalidate>
+          <!-- New Password -->
+          <div class="form-group">
+            <label for="newPw">New Password</label>
+            <div class="pw-field-wrap">
+              <input class="pw-input" type="password" id="newPw" placeholder="At least 8 characters" autocomplete="new-password">
+              <button type="button" class="pw-toggle-btn" id="toggleNew" aria-label="Show/hide password">
+                <i data-lucide="eye" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;"></i>
+              </button>
+            </div>
+            <!-- Strength bar -->
+            <div class="strength-wrap" id="strengthWrap" style="display:none;">
+              <div class="strength-bar-row">
+                <div class="strength-seg" id="s1"></div>
+                <div class="strength-seg" id="s2"></div>
+                <div class="strength-seg" id="s3"></div>
+                <div class="strength-seg" id="s4"></div>
+              </div>
+              <span class="strength-label" id="strengthLabel">Weak</span>
+            </div>
+            <span class="field-error" id="newPwErr">Password must be at least 8 characters.</span>
+          </div>
+
+          <!-- Confirm Password -->
+          <div class="form-group">
+            <label for="confirmPw">Confirm Password</label>
+            <div class="pw-field-wrap">
+              <input class="pw-input" type="password" id="confirmPw" placeholder="Repeat your password" autocomplete="new-password">
+              <button type="button" class="pw-toggle-btn" id="toggleConfirm" aria-label="Show/hide confirm password">
+                <i data-lucide="eye" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;"></i>
+              </button>
+            </div>
+            <span class="field-error" id="confirmPwErr">Passwords do not match.</span>
+          </div>
+
+          <button type="submit" class="action-btn" id="submitBtn">
+            <i data-lucide="check" style="width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.5;"></i>
+            Reset Password
+          </button>
+        </form>
+      </div>
+
+      <!-- === SUCCESS STATE === -->
+      <div class="state-panel" id="successState">
+        <div class="state-icon success">
+          <i data-lucide="shield-check" style="width:28px;height:28px;stroke:var(--accent-green);fill:none;stroke-width:2;"></i>
+        </div>
+        <h2>Password reset!</h2>
+        <p>Your password has been updated successfully. You can now sign in with your new password.</p>
+        <a href="login.html" class="back-btn">
+          <i data-lucide="log-in" style="width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2;"></i>
+          Go to Login
+        </a>
+      </div>
+
+      <!-- === ERROR STATE === -->
+      <div class="state-panel" id="errorState">
+        <div class="state-icon error">
+          <i data-lucide="alert-triangle" style="width:28px;height:28px;stroke:var(--accent-red);fill:none;stroke-width:2;"></i>
+        </div>
+        <h2>Link expired or invalid</h2>
+        <p id="errorMsg">This password reset link has expired or has already been used. Please request a new one.</p>
+        <a href="login.html" class="back-btn">
+          <i data-lucide="rotate-ccw" style="width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2;"></i>
+          Request a new link
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // ── Firebase config ─────────────────────────────────────────────────────
+    const firebaseConfig = {
+      apiKey: "AIzaSyAZvDCJjvDmA7ueN56C2uBlDfvUdWPQpas",
+      authDomain: "phishing-detector-e7eef.firebaseapp.com",
+      projectId: "phishing-detector-e7eef",
+      storageBucket: "phishing-detector-e7eef.appspot.com",
+      appId: "1:205583296703:web:fed57c2c71fa36ffc83e0a"
+    };
+
+    // Only init once
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // ── Read URL params ──────────────────────────────────────────────────────
+    const params    = new URLSearchParams(window.location.search);
+    const mode      = params.get('mode');
+    const oobCode   = params.get('oobCode');
+
+    // ── State helpers ────────────────────────────────────────────────────────
+    function showState(id) {
+      ['loadingState','resetForm','successState','errorState'].forEach(s => {
+        const el = document.getElementById(s);
+        if (el) el.style.display = 'none';
+        if (el && el.classList) el.classList.remove('visible');
+      });
+      const target = document.getElementById(id);
+      if (target) {
+        target.style.display = 'flex';
+        target.classList && target.classList.add('visible');
+      }
+    }
+
+    function showError(msg) {
+      if (msg) document.getElementById('errorMsg').textContent = msg;
+      showState('errorState');
+    }
+
+    // ── Verify the oobCode on load ───────────────────────────────────────────
+    if (mode === 'resetPassword' && oobCode) {
+      auth.verifyPasswordResetCode(oobCode)
+        .then(() => {
+          // Valid code — show the form
+          showState('resetForm');
+          lucide.createIcons();
+        })
+        .catch(err => {
+          showError(getFirebaseError(err.code));
+        });
+    } else {
+      showError('No valid reset link found. Please request a new password reset from the login page.');
+    }
+
+    // ── Password strength ────────────────────────────────────────────────────
+    const segments     = ['s1','s2','s3','s4'].map(id => document.getElementById(id));
+    const strengthColors = ['#c41c1c','#fe4c02','#e8a000','#008a3c'];
+    const strengthLabels = ['Weak','Fair','Good','Strong'];
+
+    function calcStrength(pw) {
+      let score = 0;
+      if (pw.length >= 8)  score++;
+      if (pw.length >= 12) score++;
+      if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+      if (/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+      return Math.min(score, 4);
+    }
+
+    document.getElementById('newPw').addEventListener('input', function () {
+      const pw = this.value;
+      const wrap = document.getElementById('strengthWrap');
+      if (!pw) { wrap.style.display = 'none'; return; }
+      wrap.style.display = 'block';
+      const score = calcStrength(pw);
+      segments.forEach((seg, i) => {
+        seg.style.background = i < score ? strengthColors[score - 1] : 'var(--border)';
+      });
+      document.getElementById('strengthLabel').textContent = score ? strengthLabels[score - 1] : 'Weak';
+      document.getElementById('strengthLabel').style.color  = score ? strengthColors[score - 1] : 'var(--text-muted)';
+    });
+
+    // ── Toggle visibility ────────────────────────────────────────────────────
+    function setupToggle(btnId, inputId) {
+      document.getElementById(btnId).addEventListener('click', () => {
+        const input = document.getElementById(inputId);
+        const isText = input.type === 'text';
+        input.type = isText ? 'password' : 'text';
+        document.getElementById(btnId).innerHTML = isText
+          ? `<i data-lucide="eye" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;"></i>`
+          : `<i data-lucide="eye-off" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;"></i>`;
+        lucide.createIcons();
+      });
+    }
+    setupToggle('toggleNew',     'newPw');
+    setupToggle('toggleConfirm', 'confirmPw');
+
+    // ── Form submit ──────────────────────────────────────────────────────────
+    document.getElementById('pwForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const newPw     = document.getElementById('newPw').value;
+      const confirmPw = document.getElementById('confirmPw').value;
+      const newPwErr  = document.getElementById('newPwErr');
+      const cfmPwErr  = document.getElementById('confirmPwErr');
+      const btn       = document.getElementById('submitBtn');
+
+      // Reset errors
+      newPwErr.classList.remove('visible');
+      cfmPwErr.classList.remove('visible');
+
+      let valid = true;
+      if (newPw.length < 8) { newPwErr.classList.add('visible'); valid = false; }
+      if (newPw !== confirmPw) { cfmPwErr.classList.add('visible'); valid = false; }
+      if (!valid) return;
+
+      // Disable button & show spinner
+      btn.disabled = true;
+      btn.innerHTML = `<div class="spinner"></div> Resetting…`;
+
+      try {
+        await auth.confirmPasswordReset(oobCode, newPw);
+        showState('successState');
+        lucide.createIcons();
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="check" style="width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.5;"></i> Reset Password`;
+        lucide.createIcons();
+        showError(getFirebaseError(err.code));
+      }
+    });
+
+    // ── Error message mapper ─────────────────────────────────────────────────
+    function getFirebaseError(code) {
+      const map = {
+        'auth/expired-action-code': 'This reset link has expired. Please request a new one.',
+        'auth/invalid-action-code': 'This reset link is invalid or has already been used.',
+        'auth/user-disabled':       'Your account has been disabled. Contact support.',
+        'auth/user-not-found':      'No account found with this email address.',
+        'auth/weak-password':       'Password is too weak. Please choose a stronger password.',
+      };
+      return map[code] || 'Something went wrong. Please try again.';
+    }
+  </script>
+
+</body>
+</html>

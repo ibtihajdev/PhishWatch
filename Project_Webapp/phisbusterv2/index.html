@@ -8,8 +8,27 @@
   <meta name="description"
     content="PhishWatch uses XGBoost machine learning to detect phishing URLs in real time. Paste any URL and get an instant safety verdict.">
   <link rel="icon" href="images/logo.jpeg">
-  <link href="assets/css/custom.css" rel="stylesheet">
+  <link href="assets/css/custom.css?v=9" rel="stylesheet">
   <style>
+    /* Force Hamburger Visibility */
+    .hamburger-btn {
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      gap: 5px !important;
+      background: transparent !important;
+      border: none !important;
+      padding: 8px !important;
+      cursor: pointer !important;
+      z-index: 1001 !important;
+    }
+
+    @media (min-width: 769px) {
+      .hamburger-btn {
+        display: none !important;
+      }
+    }
+    
     /* Toast Container (Top Right) */
     #toast-container {
       position: fixed;
@@ -69,6 +88,7 @@
       }
     }
   </style>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 
 <body>
@@ -95,13 +115,34 @@
       <div class="pw-profile-dropdown" id="profileDropdownBtn">
         <img id="navAvatar" src="" alt="Avatar" style="display:none; width:36px; height:36px; border-radius:50%; object-fit:cover;">
         <span id="navName" style="font-weight: 500; font-size: 0.9rem; margin-left:8px; color: var(--text-primary);">User</span>
-        <span style="font-size: 0.7rem; margin-left: 4px; color: var(--text-muted);">▼</span>
+        <span style="font-size: 0.7rem; margin-left: 4px; color: var(--text-muted);"><i data-lucide="chevron-down" class="icon-sm"></i></span>
         <div class="pw-dropdown-menu" id="dropdownMenu">
-          <a href="#" id="menuProfile">👤 Profile</a>
-          <a href="#" onclick="logout()" style="color: var(--error);">🚪 Logout</a>
+          <a href="#" id="menuProfile"><i data-lucide="user" class="icon-md"></i> Profile</a>
+          <a href="#" onclick="logout()" style="color: var(--error);"><i data-lucide="log-out" class="icon-md icon-danger"></i> Logout</a>
         </div>
       </div>
     </nav>
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle menu" style="color: var(--text-primary);">
+      <i data-lucide="menu" class="icon-xl"></i>
+    </button>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#scanner">Scan</a>
+      <a href="#features">Features</a>
+      <a href="blogs.html">Blog</a>
+      <a href="api.html">API Docs</a>
+      <a href="#about">About</a>
+      <a href="#history">History</a>
+      <div id="mobileProfileSection" style="display:none; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex; align-items:center;">
+          <img id="mobileAvatar" src="" alt="Avatar" style="display:none; width:24px; height:24px; border-radius:50%; object-fit:cover; margin-right:8px;">
+          <span id="mobileName" style="color:var(--text-primary);">User</span>
+        </div>
+        <a href="#" id="mobileMenuProfile" style="border:none; padding:0; display:inline-block; width:auto; text-decoration:none;"><i data-lucide="user" class="icon-md"></i> Profile</a>
+      </div>
+      <a href="#" onclick="logout()" id="mobileLogoutSection" style="color: var(--error); display:none;"><i data-lucide="log-out" class="icon-md icon-danger"></i> Logout</a>
+    </div>
   </header>
 
   <!-- ── Hero ────────────────────────────────────────────────────────── -->
@@ -119,7 +160,7 @@
           spellcheck="false">
         <button id="scanBtn" class="pw-btn-scan" onclick="predictURL()">
           <span id="scanBtnText">Scan</span>
-          <span class="pw-spinner" id="spinner"></span>
+          <i data-lucide="loader-circle" class="icon-md pw-spinner-icon" id="spinner" style="display:none; animation: spin 1s linear infinite;"></i>
         </button>
       </div>
       <button class="pw-btn-reset" id="resetBtn" onclick="resetPage()">Scan another URL</button>
@@ -152,7 +193,7 @@
       
       <!-- Loading / Error Cards -->
       <div class="pw-verdict-card" id="loadingCard" style="display:none; padding: 32px; text-align: center; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;">
-        <span class="pw-spinner" style="display:inline-block; border-color: var(--accent-cyan); border-bottom-color: transparent; width: 24px; height: 24px; margin-right: 12px; vertical-align: middle;"></span> 
+        <i data-lucide="loader-circle" class="icon-lg icon-success pw-spinner-icon" style="margin-right: 12px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle;"></i> 
         <span style="color: var(--text-primary); font-weight: 600; font-size: 1.1rem; vertical-align: middle;">Analyzing URL...</span>
       </div>
       <div class="pw-verdict-card" id="errorCard" style="display:none; padding: 24px; background: rgba(255, 60, 60, 0.05); border: 1px solid var(--error); border-radius: 8px; color: var(--error);">
@@ -162,16 +203,16 @@
       
       <!-- WHOIS Panel -->
       <div id="whoisSkeleton" style="display:none; padding: 24px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 16px;">
-        <span class="pw-spinner" style="display:inline-block; border-color: var(--text-muted); border-bottom-color: transparent; width: 16px; height: 16px; margin-right: 8px;"></span> Loading domain intelligence...
+        <i data-lucide="loader-circle" class="icon-sm icon-muted pw-spinner-icon" style="margin-right: 8px; animation: spin 1s linear infinite; display: inline-block;"></i> Loading domain intelligence...
       </div>
       <div id="whoisCard" style="display:none; margin-top: 16px; padding: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: left;">
         <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text-primary);">Domain Intelligence</h3>
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; color: var(--text-muted);">
-          <div>🗓 Registered: <span id="whoisCreated" style="color: var(--text-primary);"></span></div>
-          <div>⏳ Expires: <span id="whoisExpires" style="color: var(--text-primary);"></span></div>
-          <div>🏢 Registrar: <span id="whoisRegistrar" style="color: var(--text-primary);"></span></div>
-          <div>🌍 Country: <span id="whoisCountry" style="color: var(--text-primary);"></span></div>
-          <div style="display: flex; align-items: center; gap: 8px;">📅 Domain Age: <span id="whoisAge" style="color: var(--text-primary);"></span> 
+          <div><i data-lucide="calendar" class="icon-md"></i> Registered: <span id="whoisCreated" style="color: var(--text-primary);"></span></div>
+          <div><i data-lucide="clock" class="icon-md"></i> Expires: <span id="whoisExpires" style="color: var(--text-primary);"></span></div>
+          <div><i data-lucide="building-2" class="icon-md"></i> Registrar: <span id="whoisRegistrar" style="color: var(--text-primary);"></span></div>
+          <div><i data-lucide="globe" class="icon-md"></i> Country: <span id="whoisCountry" style="color: var(--text-primary);"></span></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><i data-lucide="calendar" class="icon-md"></i> Domain Age: <span id="whoisAge" style="color: var(--text-primary);"></span> 
             <span id="whoisBadge" style="padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;"></span>
           </div>
         </div>
@@ -179,12 +220,12 @@
 
       <!-- Screenshot Panel -->
       <div id="screenshotSkeleton" style="display:none; padding: 24px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 16px;">
-        <span class="pw-spinner" style="display:inline-block; border-color: var(--text-muted); border-bottom-color: transparent; width: 16px; height: 16px; margin-right: 8px;"></span> Loading site preview...
+        <i data-lucide="loader-circle" class="icon-sm icon-muted pw-spinner-icon" style="margin-right: 8px; animation: spin 1s linear infinite; display: inline-block;"></i> Loading site preview...
       </div>
       <div id="screenshotCard" style="display:none; margin-top: 16px; padding: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: center;">
         <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text-primary); text-align: left;">Site Preview (Safe Sandbox)</h3>
         <img id="screenshotImg" src="" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; margin: 0 auto;">
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;">⚠ Preview rendered safely. No connection was made from your browser.</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;"><i data-lucide="triangle-alert" class="icon-md icon-warning"></i> Preview rendered safely. No connection was made from your browser.</div>
       </div>
     </div>
 
@@ -600,7 +641,7 @@
   <!-- ── Profile Modal ──────────────────────────────────────────────────────── -->
   <div class="pw-profile-modal-overlay" id="profileModal">
     <div class="pw-profile-modal">
-      <button class="pw-modal-close" id="closeProfileModal">✕</button>
+      <button class="pw-modal-close" id="closeProfileModal"><i data-lucide="x" class="icon-md icon-danger"></i></button>
       <div class="pw-profile-header">
         <img id="modalAvatar" src="" alt="Avatar">
         <h2 id="modalName">Full Name</h2>
@@ -724,6 +765,18 @@
         navAvatar.src = navPhotoURL;
         navAvatar.style.display = "block";
 
+        // Populate Mobile Profile
+        const mobileProfileSection = document.getElementById("mobileProfileSection");
+        const mobileLogoutSection = document.getElementById("mobileLogoutSection");
+        if (mobileProfileSection && mobileLogoutSection) {
+          mobileProfileSection.style.display = "flex";
+          mobileLogoutSection.style.display = "flex";
+          document.getElementById("mobileName").textContent = displayName;
+          const mobileAvatar = document.getElementById("mobileAvatar");
+          mobileAvatar.src = navPhotoURL;
+          mobileAvatar.style.display = "block";
+        }
+
         document.getElementById("modalName").textContent = displayName;
         document.getElementById("modalEmail").textContent = email;
         document.getElementById("modalAvatar").src = photoURL;
@@ -760,13 +813,59 @@
 
     // ── Constants ──────────────────────────────────────────────────────────────
     const API_BASE = window.location.hostname === 'localhost' || 
-                     window.location.hostname === '127.0.0.1'
+                     window.location.hostname === '127.0.0.1' ||
+                     window.location.protocol === 'file:' || 
+                     window.location.hostname === ''
       ? 'http://127.0.0.1:8000'
       : 'https://phishwatch-api.onrender.com';
 
     function getHistoryKey() {
       const uid = auth.currentUser ? auth.currentUser.uid : "guest";
       return `phishwatch_v2_history_${uid}`;
+    }
+
+    // ── Hamburger Menu Logic ───────────────────────────────────────────────────
+    const hamburgerBtn = document.getElementById("hamburgerBtn");
+    const mobileMenu = document.getElementById("mobileMenu");
+
+    if (hamburgerBtn && mobileMenu) {
+              hamburgerBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const isOpen = hamburgerBtn.classList.toggle("is-open");
+          mobileMenu.classList.toggle("menu-open");
+          hamburgerBtn.setAttribute("aria-expanded", isOpen);
+          
+          hamburgerBtn.innerHTML = isOpen ? `<i data-lucide="x" class="icon-xl"></i>` : `<i data-lucide="menu" class="icon-xl"></i>`;
+          lucide.createIcons();
+        });
+
+      // Close menu when clicking outside or resizing
+      document.addEventListener("click", (e) => {
+        if (!hamburgerBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+          hamburgerBtn.classList.remove("is-open");
+          mobileMenu.classList.remove("menu-open");
+          hamburgerBtn.setAttribute("aria-expanded", "false");
+            hamburgerBtn.innerHTML = `<i data-lucide="menu" class="icon-xl"></i>`;
+            lucide.createIcons();
+        }
+      });
+
+      // Close when clicking a link
+      mobileMenu.addEventListener("click", (e) => {
+        if (e.target.tagName === 'A') {
+          hamburgerBtn.classList.remove("is-open");
+          mobileMenu.classList.remove("menu-open");
+          hamburgerBtn.setAttribute("aria-expanded", "false");
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+          hamburgerBtn.classList.remove('is-open');
+          mobileMenu.classList.remove('menu-open');
+          hamburgerBtn.setAttribute("aria-expanded", "false");
+        }
+      });
     }
     const FEATURE_META = [
       { key: "Have_IP", label: "Have IP", desc: "IP address in URL", detail: "Phishers often use raw IP addresses instead of readable domains to hide their identity." },
@@ -826,9 +925,10 @@
           isPhishing = val === 1;
         }
 
-        el.textContent = isPhishing ? "⚠ Flagged" : "✓ OK";
+        el.innerHTML = isPhishing ? `<i data-lucide="triangle-alert" class="icon-md icon-warning"></i> Flagged` : `<i data-lucide="check" class="icon-md icon-success"></i> OK`;
         if (f.key === "URL_Depth") {
-          el.textContent += ` (${val})`;
+          el.innerHTML += ` (${val})`;
+          lucide.createIcons();
         }
 
         el.className = "pw-feat-val " + (isPhishing ? "phish" : "legit");
@@ -1035,16 +1135,18 @@
         whoisCard.innerHTML = `
         <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text-primary);">Domain Intelligence</h3>
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; color: var(--text-muted);">
-          <div>🗓 Registered: <span style="color: var(--text-primary);">${whoisData.created_date || "—"}</span></div>
-          <div>⏳ Expires: <span style="color: var(--text-primary);">${whoisData.expiry_date || "—"}</span></div>
-          <div>🏢 Registrar: <span style="color: var(--text-primary);">${whoisData.registrar || "—"}</span></div>
-          <div>🌍 Country: <span style="color: var(--text-primary);">${whoisData.country || "—"}</span></div>
-          <div style="display: flex; align-items: center; gap: 8px;">📅 Domain Age: <span style="color: var(--text-primary);">${whoisData.domain_age_days ? whoisData.domain_age_days + " days" : "—"}</span> 
-            <span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; ${whoisData.is_newly_registered ? 'background-color: rgba(255, 60, 60, 0.1); color: var(--accent-red);' : 'background-color: rgba(46, 213, 115, 0.1); color: var(--accent-green);'}">${whoisData.is_newly_registered ? '⚠ Newly Registered — High Risk Signal' : '✓ Established Domain'}</span>
+          <div><i data-lucide="calendar" class="icon-md"></i> Registered: <span style="color: var(--text-primary);">${whoisData.created_date || "—"}</span></div>
+          <div><i data-lucide="clock" class="icon-md"></i> Expires: <span style="color: var(--text-primary);">${whoisData.expiry_date || "—"}</span></div>
+          <div><i data-lucide="building-2" class="icon-md"></i> Registrar: <span style="color: var(--text-primary);">${whoisData.registrar || "—"}</span></div>
+          <div><i data-lucide="globe" class="icon-md"></i> Country: <span style="color: var(--text-primary);">${whoisData.country || "—"}</span></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><i data-lucide="calendar" class="icon-md"></i> Domain Age: <span style="color: var(--text-primary);">${whoisData.domain_age_days ? whoisData.domain_age_days + " days" : "—"}</span> 
+            <span style="padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; ${whoisData.is_newly_registered ? 'background-color: rgba(255, 60, 60, 0.1); color: var(--accent-red);' : 'background-color: rgba(46, 213, 115, 0.1); color: var(--accent-green);'}">${whoisData.is_newly_registered ? '<i data-lucide="triangle-alert" class="icon-md icon-warning"></i> Newly Registered — High Risk Signal' : '<i data-lucide="check" class="icon-md icon-success"></i> Established Domain'}</span>
           </div>
         </div>`;
+        lucide.createIcons();
       } else {
         whoisCard.innerHTML = `<div style="color: var(--text-muted); text-align: center;">WHOIS data unavailable for this domain.</div>`;
+        lucide.createIcons();
       }
 
       // Screenshot rendering
@@ -1054,9 +1156,11 @@
       if (screenshotData.success && screenshotData.image_base64) {
         screenshotCard.innerHTML = `<h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text-primary); text-align: left;">Site Preview (Safe Sandbox)</h3>
         <img src="${screenshotData.image_base64}" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; margin: 0 auto;">
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;">⚠ Preview rendered safely. No connection was made from your browser.</div>`;
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;"><i data-lucide="triangle-alert" class="icon-md icon-warning"></i> Preview rendered safely. No connection was made from your browser.</div>`;
+        lucide.createIcons();
       } else {
         screenshotCard.innerHTML = `<div style="color: var(--text-muted); text-align: center;">Preview unavailable for this URL.</div>`;
+        lucide.createIcons();
       }
     }
 
@@ -1114,6 +1218,9 @@
         showToast("Error reporting URL: " + err.message, "error");
       });
     }
+  </script>
+  <script>
+    lucide.createIcons();
   </script>
 </body>
 
