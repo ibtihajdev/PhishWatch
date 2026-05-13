@@ -147,13 +147,26 @@ else:
     print(f"[PhishWatch] WARNING: model not found at {MODEL_PATH}")
 
 # ─── Initialize Firebase Admin ────────────────────────────────────────────────
-FIREBASE_CRED_PATH = os.path.normpath(os.path.join(settings.BASE_DIR, '..', '..', '..', '..', 'phishing-detector-e7eef-firebase-adminsdk-fbsvc-a87923caa5.json'))
-if os.path.exists(FIREBASE_CRED_PATH):
-    if not firebase_admin._apps:
-        cred = credentials.Certificate(FIREBASE_CRED_PATH)
+if not firebase_admin._apps:
+    _firebase_cred_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
+    _firebase_cred_path = os.path.normpath(os.path.join(settings.BASE_DIR, '..', '..', '..', '..', 'phishing-detector-e7eef-firebase-adminsdk-fbsvc-a87923caa5.json'))
+
+    if _firebase_cred_json:
+        # Cloud deployment: load from environment variable
+        try:
+            _cred_dict = json.loads(_firebase_cred_json)
+            cred = credentials.Certificate(_cred_dict)
+            firebase_admin.initialize_app(cred)
+            print("[PhishWatch] Firebase Admin initialized from environment variable.")
+        except Exception as e:
+            print(f"[PhishWatch] ERROR: Failed to init Firebase from env var: {e}")
+    elif os.path.exists(_firebase_cred_path):
+        # Local development: load from JSON file
+        cred = credentials.Certificate(_firebase_cred_path)
         firebase_admin.initialize_app(cred)
-else:
-    print(f"[PhishWatch] WARNING: Firebase Admin credentials not found at {FIREBASE_CRED_PATH}")
+        print("[PhishWatch] Firebase Admin initialized from local credentials file.")
+    else:
+        print("[PhishWatch] WARNING: No Firebase credentials found. Authentication will fail.")
 
 class FirebaseAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
