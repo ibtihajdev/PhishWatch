@@ -95,7 +95,9 @@ class DETECTION:
 
 
     def tinyURL(self,url):
-        match = re.search(self.shortening_services, url)
+        # Prevent "x.co" from matching inside "netflix.com"
+        domain = urlparse(url).netloc
+        match = re.search(r"\b(" + self.shortening_services + r")\b", domain, flags=re.I)
         if match:
             return 1
         else:
