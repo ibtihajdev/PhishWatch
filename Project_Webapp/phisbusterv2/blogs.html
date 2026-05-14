@@ -126,12 +126,18 @@
   <nav class="pw-nav">
     <a href="index.html#scanner">Scan</a>
     <a href="index.html#features">Features</a>
-    <a href="blogs.html" style="color:var(--accent-cyan)">Blog</a>
-    <a href="api.html">API Docs</a>
     <a href="index.html#about">About</a>
     <a href="index.html#history">History</a>
-    <div class="pw-profile-dropdown" onclick="window.location.href='index.html'" style="cursor: pointer;">
-      <span id="navName" style="font-weight: 500; font-size: 0.9rem; margin-left:8px; color: var(--text-primary);"><i data-lucide="user" class="icon-sm"></i> App Dashboard</span>
+    <a href="blogs.html" style="color:var(--accent-cyan)">Blog</a>
+    <a href="api.html">API Docs</a>
+    <div class="pw-profile-dropdown" id="profileDropdownBtn">
+      <img id="navAvatar" src="" alt="Avatar" style="display:none; width:36px; height:36px; border-radius:50%; object-fit:cover;">
+      <span id="navName" style="font-weight: 500; font-size: 0.9rem; margin-left:8px; color: var(--text-primary);">User</span>
+      <span style="font-size: 0.7rem; margin-left: 4px; color: var(--text-muted);"><i data-lucide="chevron-down" class="icon-sm"></i></span>
+      <div class="pw-dropdown-menu" id="dropdownMenu">
+        <a href="#" id="menuProfile"><i data-lucide="user" class="icon-md"></i> Profile</a>
+        <a href="#" onclick="logout()" style="color: var(--error);"><i data-lucide="log-out" class="icon-md icon-danger"></i> Logout</a>
+      </div>
     </div>
   </nav>
 </header>
@@ -202,6 +208,158 @@
   <a href="https://phishingquiz.withgoogle.com/" target="_blank">Take Google's Phishing Quiz</a></p>
 </footer>
 
+<!-- ── Profile Modal ──────────────────────────────────────────────────────── -->
+  <div class="pw-profile-modal-overlay" id="profileModal">
+    <div class="pw-profile-modal">
+      <button class="pw-modal-close" id="closeProfileModal"><i data-lucide="x" class="icon-md icon-danger"></i></button>
+      <div class="pw-profile-header">
+        <img id="modalAvatar" src="" alt="Avatar">
+        <h2 id="modalName">Full Name</h2>
+        <p id="modalEmail">user@example.com</p>
+      </div>
+      <div class="pw-profile-details">
+        <div class="pw-profile-stat">
+          <span class="pw-stat-label">Joined</span>
+          <span class="pw-stat-value" id="modalJoined">...</span>
+        </div>
+        <div class="pw-profile-stat">
+          <span class="pw-stat-label">Total Scans</span>
+          <span class="pw-stat-value" id="modalScans">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAZvDCJjvDmA7ueN56C2uBlDfvUdWPQpas",
+      authDomain: "phishing-detector-e7eef.firebaseapp.com",
+      projectId: "phishing-detector-e7eef",
+      storageBucket: "phishing-detector-e7eef.firebasestorage.app",
+      messagingSenderId: "205583296703",
+      appId: "1:205583296703:web:fed57c2c71fa36ffc83e0a",
+      measurementId: "G-Y5L4F8DZCF"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    window.generateAvatar = function(name, size) {
+      if (!name) name = "User";
+      const parts = name.trim().split(/\s+/);
+      let initials = parts[0].charAt(0).toUpperCase();
+      if (parts.length > 1) {
+        initials += parts[parts.length - 1].charAt(0).toUpperCase();
+      } else if (parts[0].length > 1) {
+        initials += parts[0].charAt(1).toUpperCase();
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+
+      const colors = ["#ff4757", "#2ed573", "#1e90ff", "#ffa502", "#3742fa", "#ff7f50"];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      const color = colors[Math.abs(hash) % colors.length];
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, size/2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `bold ${Math.round(size * 0.4)}px Inter, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(initials, size/2, size/2 + 1);
+
+      return canvas.toDataURL("image/png");
+    };
+
+    const dropdownBtn = document.getElementById("profileDropdownBtn");
+    const dropdownMenu = document.getElementById("dropdownMenu");
+    const profileModal = document.getElementById("profileModal");
+    const closeProfileModal = document.getElementById("closeProfileModal");
+    const menuProfile = document.getElementById("menuProfile");
+
+    if(dropdownBtn) {
+      dropdownBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle("show");
+      });
+    }
+
+    document.addEventListener("click", (e) => {
+      if (dropdownMenu && dropdownMenu.classList.contains("show")) {
+        dropdownMenu.classList.remove("show");
+      }
+    });
+
+    if(menuProfile) {
+      menuProfile.addEventListener("click", (e) => {
+        e.preventDefault();
+        profileModal.classList.add("show");
+      });
+    }
+
+    if(closeProfileModal) {
+      closeProfileModal.addEventListener("click", () => {
+        profileModal.classList.remove("show");
+      });
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+      } else {
+        const displayName = user.displayName || user.email.split('@')[0] || "User";
+        const email = user.email || "No email available";
+        const photoURL = user.photoURL || window.generateAvatar(displayName, 100);
+        const navPhotoURL = user.photoURL || window.generateAvatar(displayName, 36);
+
+        document.getElementById("navName").textContent = displayName;
+        const navAvatar = document.getElementById("navAvatar");
+        navAvatar.src = navPhotoURL;
+        navAvatar.style.display = "block";
+
+        document.getElementById("modalName").textContent = displayName;
+        document.getElementById("modalEmail").textContent = email;
+        document.getElementById("modalAvatar").src = photoURL;
+        
+        if (user.metadata && user.metadata.creationTime) {
+          const joinedDate = new Date(user.metadata.creationTime).toLocaleDateString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric'
+          });
+          document.getElementById("modalJoined").textContent = joinedDate;
+        }
+
+        const uid = auth.currentUser ? auth.currentUser.uid : "guest";
+        const historyKey = `phishwatch_v2_history_${uid}`;
+        const stored = localStorage.getItem(historyKey);
+        let scanCount = 0;
+        if (stored) {
+          try {
+             const h = JSON.parse(stored);
+             scanCount = h.length;
+          } catch(e) {}
+        }
+        document.getElementById("modalScans").textContent = scanCount;
+      }
+    });
+
+    window.logout = async function () {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        alert("Error signing out");
+      }
+    };
+  </script>
   <script>
     lucide.createIcons();
   </script>
