@@ -30,7 +30,7 @@ import logging
 import hashlib
 import difflib
 import re
-from .models import FalsePositiveReport
+from .models import FalsePositiveReport, ScanHistory
 
 import firebase_admin
 from firebase_admin import credentials, auth as firebase_auth
@@ -491,3 +491,141 @@ def screenshot_preview(request):
             
     except Exception:
         return JsonResponse({"success": False, "error": "Screenshot could not be captured."})
+
+@api_view(['POST'])
+@authentication_classes([FirebaseAuthentication])
+@permission_classes([])
+@throttle_classes([CustomAnonRateThrottle])
+def safe_browsing_check(request):
+    try:
+        body = request.data if hasattr(request, 'data') else json.loads(request.body)
+        url = body.get('url', '').strip()
+        
+        if not url:
+            return JsonResponse({"success": False, "error": "URL is required."}, status=400)
+            
+        api_key = getattr(settings, 'GOOGLE_SAFE_BROWSING_API_KEY', '')
+        if not api_key:
+            return JsonResponse({"success": False, "error": "Google Safe Browsing API key not configured."})
+            
+        gsb_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={api_key}"
+        payload = {
+            "client": {
+                "clientId": "phishwatch",
+                "clientVersion": "1.0.0"
+            },
+            "threatInfo": {
+                "threatTypes": [
+                    "MALWARE",
+                    "SOCIAL_ENGINEERING",
+                    "UNWANTED_SOFTWARE",
+                    "POTENTIALLY_HARMFUL_APPLICATION"
+                ],
+                "platformTypes": ["ANY_PLATFORM"],
+                "threatEntryTypes": ["URL"],
+                "threatEntries": [
+                    {"url": url}
+                ]
+            }
+        }
+        
+        resp = requests.post(gsb_url, json=payload, timeout=5)
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            if "matches" in data and len(data["matches"]) > 0:
+                threat_type = data["matches"][0].get("threatType", "UNKNOWN")
+                return JsonResponse({
+                    "success": True,
+                    "is_dangerous": True,
+                    "threat_type": threat_type,
+                    "verdict": "Dangerous — flagged by Google Safe Browsing"
+                })
+            else:
+                return JsonResponse({
+                    "success": True,
+                    "is_dangerous": False,
+                    "threat_type": None,
+                    "verdict": "Clean — not flagged by Google Safe Browsing"
+                })
+        else:
+            return JsonResponse({"success": False, "error": "Google Safe Browsing check could not be completed."})
+            
+    except Exception as e:
+        return JsonResponse({"success": False, "error": "Google Safe Browsing check could not be completed."})
+
+@api_view(['POST'])
+@authentication_classes([FirebaseAuthentication])
+@permission_classes([IsAuthenticated])
+def save_history(request):
+    try:
+        body = request.data if hasattr(request, 'data') else json.loads(request.body)
+        url = body.get('url')
+        verdict = body.get('verdict')
+        confidence = body.get('confidence')
+
+        if not url or not verdict:
+            return JsonResponse({"success": False, "error": "URL and verdict are required."}, status=400)
+
+        ScanHistory.objects.create(
+            user=request.user,
+            url=url,
+            verdict=verdict,
+            confidence=confidence
+        )
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+@api_view(['GET'])
+@authentication_classes([FirebaseAuthentication])
+@permission_classes([IsAuthenticated])
+def get_history(request):
+    try:
+        history = ScanHistory.objects.filter(user=request.user).order_by('-timestamp')[:50]
+        data = []
+        for item in history:
+            data.append({
+                "url": item.url,
+                "verdict": item.verdict,
+                "confidence": item.confidence,
+                "timestamp": item.timestamp.isoformat()
+            })
+        return JsonResponse({"success": True, "history": data})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+from .ssl_checker import get_ssl_info
+
+@api_view(['POST'])
+@authentication_classes([FirebaseAuthentication])
+@permission_classes([])
+@throttle_classes([CustomAnonRateThrottle])
+def ssl_check(request):
+    try:
+        body = request.data if hasattr(request, 'data') else json.loads(request.body)
+        url = body.get('url', '').strip()
+        
+        if not url:
+            return JsonResponse({"success": False, "error": "URL is required."}, status=400)
+            
+        ssl_data = get_ssl_info(url)
+        if ssl_data.get("has_ssl"):
+            return JsonResponse({
+                "success": True,
+                "has_ssl": True,
+                "issuer": ssl_data.get("issuer"),
+                "subject": ssl_data.get("subject"),
+                "expiry_date": ssl_data.get("expiry_date"),
+                "is_expired": ssl_data.get("is_expired")
+            })
+        else:
+            return JsonResponse({
+                "success": True,
+                "has_ssl": False,
+                "error": ssl_data.get("error")
+            })
+            
+    except Exception as e:
+        return JsonResponse({"success": False, "error": "SSL check could not be completed."})

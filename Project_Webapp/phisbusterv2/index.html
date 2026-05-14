@@ -227,6 +227,20 @@
         <img id="screenshotImg" src="" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; margin: 0 auto;">
         <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;"><i data-lucide="triangle-alert" class="icon-md icon-warning"></i> Preview rendered safely. No connection was made from your browser.</div>
       </div>
+
+      <!-- Safe Browsing Panel -->
+      <div id="gsbSkeleton" style="display:none; padding: 24px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 16px;">
+        <i data-lucide="loader-circle" class="icon-sm icon-muted pw-spinner-icon" style="margin-right: 8px; animation: spin 1s linear infinite; display: inline-block;"></i> Checking Google Safe Browsing...
+      </div>
+      <div id="gsbCard" style="display:none; margin-top: 16px; padding: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: left;">
+      </div>
+
+      <!-- SSL Certificate Panel -->
+      <div id="sslSkeleton" style="display:none; padding: 24px; text-align: center; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-top: 16px;">
+        <i data-lucide="loader-circle" class="icon-sm icon-muted pw-spinner-icon" style="margin-right: 8px; animation: spin 1s linear infinite; display: inline-block;"></i> Verifying SSL Certificate...
+      </div>
+      <div id="sslCard" style="display:none; margin-top: 16px; padding: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: left;">
+      </div>
     </div>
 
     <!-- Stats -->
@@ -490,11 +504,9 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <div class="pw-section-title">Scan History</div>
       <div>
-        <button class="pw-btn-sm" onclick="exportHistoryCSV()" style="margin-right: 8px;">Export CSV</button>
-        <button class="pw-btn-sm" onclick="clearHistory()">Clear</button>
       </div>
     </div>
-    <div class="pw-section-sub" style="margin-bottom:24px;">Stored locally in your browser. Up to 50 entries.</div>
+    <div class="pw-section-sub" style="margin-bottom:24px;">Stored in SQLite database. Last 50 entries shown.</div>
     <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
       <table class="pw-history-table">
         <thead>
@@ -931,68 +943,54 @@
       });
     }
 
-    // ── History helpers ────────────────────────────────────────────────────────
-    function getHistory() { try { return JSON.parse(localStorage.getItem(getHistoryKey()) || "[]"); } catch { return []; } }
-    function saveHistory(h) { localStorage.setItem(getHistoryKey(), JSON.stringify(h.slice(0, 50))); }
-
-    window.renderHistory = function () {
+    // ── Backend History Helpers ──────────────────────────────────────────────────
+    window.renderHistory = async function () {
       const rows = document.getElementById("historyRows");
-      const items = getHistory();
-
       const statEl = document.getElementById("statSessionScans");
-      if (statEl) statEl.textContent = items.length;
 
-      if (!items.length) {
-        rows.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px">No scans yet.</td></tr>`;
-        return;
-      }
-      rows.innerHTML = items.map(it => {
-        const cls = it.verdict === "Safe" ? "safe" : it.verdict === "Phishing" ? "phishing" : "unknown";
-        return `
-      <tr>
-        <td style="color:var(--text-muted);font-size:0.8rem">${new Date(it.ts).toLocaleString()}</td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem">${it.url}</td>
-        <td><span class="pw-hist-badge ${cls}">${it.verdict}</span></td>
-        <td class="pw-conf-pct">${it.conf !== null ? it.conf + "%" : "—"}</td>
-      </tr>`;
-      }).join("");
-    }
-
-    function addHistory(item) {
-      const h = getHistory();
-      h.unshift(item);
-      saveHistory(h);
-      window.renderHistory();
-    }
-
-    window.clearHistory = function () {
-      localStorage.removeItem(getHistoryKey());
-      window.renderHistory();
-    }
-
-    // Export History to CSV
-    window.exportHistoryCSV = function () {
-      let history = getHistory();
-      if (history.length === 0) {
-        showToast("No history available to export.", "warning");
+      const user = auth.currentUser;
+      if (!user) {
+        if (rows) rows.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px">Please log in to view history.</td></tr>`;
+        if (statEl) statEl.textContent = 0;
         return;
       }
 
-      let csvContent = "data:text/csv;charset=utf-8,Time,URL,Verdict,Confidence\n";
-      history.forEach(row => {
-        let verdict = row.verdict;
-        // Escape quotes in URL just in case
-        let safeUrl = row.url.replace(/"/g, '""');
-        csvContent += `"${new Date(row.ts).toLocaleString()}","${safeUrl}","${verdict}","${row.conf}%"\n`;
-      });
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(`${API_BASE}/history/get/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) throw new Error("Failed to fetch history");
+        const data = await response.json();
+        const items = data.history || [];
+        
+        if (statEl) statEl.textContent = items.length;
 
-      let encodedUri = encodeURI(csvContent);
-      let link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "phishwatch_scan_history.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        if (!items.length) {
+          if (rows) rows.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px">No scans yet.</td></tr>`;
+          return;
+        }
+
+        if (rows) {
+          rows.innerHTML = items.map(it => {
+            const cls = it.verdict === "Safe" ? "safe" : it.verdict === "Phishing" ? "phishing" : "unknown";
+            return `
+          <tr>
+            <td style="color:var(--text-muted);font-size:0.8rem">${new Date(it.timestamp).toLocaleString()}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem">${it.url}</td>
+            <td><span class="pw-hist-badge ${cls}">${it.verdict}</span></td>
+            <td class="pw-conf-pct">${it.confidence !== null ? it.confidence + "%" : "—"}</td>
+          </tr>`;
+          }).join("");
+        }
+      } catch (err) {
+        console.error("Error fetching history:", err);
+        if (rows) rows.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--accent-red);padding:32px">Error loading history.</td></tr>`;
+      }
     }
 
     // ── Initialization ────────────────────────────────────────────────────────────────
@@ -1012,6 +1010,8 @@
       document.getElementById("errorCard").style.display = "none";
       document.getElementById("whoisCard").style.display = "none";
       document.getElementById("screenshotCard").style.display = "none";
+      document.getElementById("gsbCard").style.display = "none";
+      document.getElementById("sslCard").style.display = "none";
       document.getElementById("loadingCard").style.display = "block";
 
       try {
@@ -1068,7 +1068,19 @@
         if (data.features) updateFeatureGrid(data.features);
 
         // History
-        addHistory({ url, verdict, conf: confidence, ts: Date.now() });
+        try {
+          await fetch(`${API_BASE}/history/save/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ url, verdict, confidence })
+          });
+          window.renderHistory();
+        } catch (e) {
+          console.error("Failed to save history:", e);
+        }
 
         // Show reset
         document.getElementById("resetBtn").style.display = "block";
@@ -1093,8 +1105,12 @@
       document.getElementById("loadingCard").style.display = "none";
       document.getElementById("whoisCard").style.display = "none";
       document.getElementById("screenshotCard").style.display = "none";
+      document.getElementById("gsbCard").style.display = "none";
+      document.getElementById("sslCard").style.display = "none";
       document.getElementById("whoisSkeleton").style.display = "none";
       document.getElementById("screenshotSkeleton").style.display = "none";
+      document.getElementById("gsbSkeleton").style.display = "none";
+      document.getElementById("sslSkeleton").style.display = "none";
       document.getElementById("resetBtn").style.display = "none";
       document.getElementById("confFill").style.width = "0%";
       window.initFeatureGrid();
@@ -1105,6 +1121,10 @@
       document.getElementById("whoisCard").style.display = "none";
       document.getElementById("screenshotSkeleton").style.display = "block";
       document.getElementById("screenshotCard").style.display = "none";
+      document.getElementById("gsbSkeleton").style.display = "block";
+      document.getElementById("gsbCard").style.display = "none";
+      document.getElementById("sslSkeleton").style.display = "block";
+      document.getElementById("sslCard").style.display = "none";
 
       const headers = {
         "Content-Type": "application/json",
@@ -1120,7 +1140,15 @@
         method: "POST", headers, body: JSON.stringify({ url })
       }).then(r => r.json()).catch(() => ({ success: false }));
 
-      const [whoisData, screenshotData] = await Promise.all([whoisPromise, screenshotPromise]);
+      const gsbPromise = fetch(`${API_BASE}/safebrowsing/`, {
+        method: "POST", headers, body: JSON.stringify({ url })
+      }).then(r => r.json()).catch(() => ({ success: false }));
+
+      const sslPromise = fetch(`${API_BASE}/ssl/`, {
+        method: "POST", headers, body: JSON.stringify({ url })
+      }).then(r => r.json()).catch(() => ({ success: false }));
+
+      const [whoisData, screenshotData, gsbData, sslData] = await Promise.all([whoisPromise, screenshotPromise, gsbPromise, sslPromise]);
 
       // WHOIS rendering
       document.getElementById("whoisSkeleton").style.display = "none";
@@ -1157,6 +1185,98 @@
         screenshotCard.innerHTML = `<div style="color: var(--text-muted); text-align: center;">Preview unavailable for this URL.</div>`;
         lucide.createIcons();
       }
+
+      // Google Safe Browsing rendering
+      document.getElementById("gsbSkeleton").style.display = "none";
+      const gsbCard = document.getElementById("gsbCard");
+      gsbCard.style.display = "block";
+      if (gsbData.success) {
+        if (gsbData.is_dangerous) {
+          gsbCard.style.backgroundColor = "rgba(255, 60, 60, 0.05)";
+          gsbCard.style.borderColor = "rgba(255, 60, 60, 0.2)";
+          gsbCard.innerHTML = `
+            <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="shield-x" class="icon-md icon-danger"></i> Google Safe Browsing
+            </h3>
+            <div style="color: var(--accent-red); font-weight: 600; margin-bottom: 8px;">${gsbData.verdict}</div>
+            ${gsbData.threat_type ? `<div style="display: inline-block; padding: 4px 8px; background: rgba(255, 60, 60, 0.1); border-radius: 4px; font-size: 0.8rem; color: var(--accent-red); font-family: monospace;">Threat Type: ${gsbData.threat_type}</div>` : ''}
+          `;
+        } else {
+          gsbCard.style.backgroundColor = "rgba(46, 213, 115, 0.05)";
+          gsbCard.style.borderColor = "rgba(46, 213, 115, 0.2)";
+          gsbCard.innerHTML = `
+            <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="shield-check" class="icon-md icon-success"></i> Google Safe Browsing
+            </h3>
+            <div style="color: var(--accent-green); font-weight: 500;">${gsbData.verdict}</div>
+          `;
+        }
+      } else {
+        gsbCard.style.backgroundColor = "var(--bg-card)";
+        gsbCard.style.borderColor = "var(--border)";
+        gsbCard.innerHTML = `
+          <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="shield" class="icon-md icon-muted"></i> Google Safe Browsing
+          </h3>
+          <div style="color: var(--text-muted);">Google Safe Browsing check unavailable</div>
+        `;
+      }
+
+      // SSL rendering
+      document.getElementById("sslSkeleton").style.display = "none";
+      const sslCard = document.getElementById("sslCard");
+      sslCard.style.display = "block";
+      if (sslData.success) {
+        if (sslData.has_ssl) {
+          if (sslData.is_expired) {
+            sslCard.style.backgroundColor = "rgba(255, 60, 60, 0.05)";
+            sslCard.style.borderColor = "rgba(255, 60, 60, 0.2)";
+            sslCard.innerHTML = `
+              <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="unlock" class="icon-md icon-danger"></i> SSL Certificate Expired
+              </h3>
+              <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--text-muted);">
+                <div>Issuer: <span style="color: var(--text-primary);">${sslData.issuer}</span></div>
+                <div>Subject: <span style="color: var(--text-primary);">${sslData.subject}</span></div>
+                <div>Expired On: <span style="color: var(--accent-red);">${sslData.expiry_date}</span></div>
+              </div>
+            `;
+          } else {
+            sslCard.style.backgroundColor = "rgba(46, 213, 115, 0.05)";
+            sslCard.style.borderColor = "rgba(46, 213, 115, 0.2)";
+            sslCard.innerHTML = `
+              <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="lock" class="icon-md icon-success"></i> SSL Certificate Valid
+              </h3>
+              <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--text-muted);">
+                <div>Issuer: <span style="color: var(--text-primary);">${sslData.issuer}</span></div>
+                <div>Subject: <span style="color: var(--text-primary);">${sslData.subject}</span></div>
+                <div>Expires: <span style="color: var(--text-primary);">${sslData.expiry_date}</span></div>
+              </div>
+            `;
+          }
+        } else {
+          sslCard.style.backgroundColor = "rgba(255, 60, 60, 0.05)";
+          sslCard.style.borderColor = "rgba(255, 60, 60, 0.2)";
+          sslCard.innerHTML = `
+            <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="shield-alert" class="icon-md icon-danger"></i> No SSL Certificate
+            </h3>
+            <div style="color: var(--accent-red);">${sslData.error || "Connection is not secure"}</div>
+          `;
+        }
+      } else {
+        sslCard.style.backgroundColor = "var(--bg-card)";
+        sslCard.style.borderColor = "var(--border)";
+        sslCard.innerHTML = `
+          <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="shield" class="icon-md icon-muted"></i> SSL Certificate
+          </h3>
+          <div style="color: var(--text-muted);">SSL check unavailable</div>
+        `;
+      }
+
+      lucide.createIcons();
     }
 
     // ── Allow Enter key ────────────────────────────────────────────────────────
