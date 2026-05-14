@@ -33,7 +33,7 @@ GOOGLE_SAFE_BROWSING_API_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 #######added code..........
 # import os
