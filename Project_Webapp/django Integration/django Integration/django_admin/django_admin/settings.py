@@ -186,6 +186,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-insecure-key-for-dev')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = [
+    '192.168.1.5',
     '127.0.0.1',
     'localhost',
     '.onrender.com',
@@ -342,6 +343,8 @@ STATICFILES_DIRS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5500",
     "http://127.0.0.1:5500",
+    "http://192.168.1.5:5500",
+    "http://192.168.1.5",
     "https://phishwatchwebapp.netlify.app",
 ]
 CORS_ALLOW_METHODS = ["GET", "POST", "OPTIONS"]
