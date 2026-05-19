@@ -345,7 +345,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5500",
     "http://192.168.1.5:5500",
     "http://192.168.1.5",
-    "https://phishwatchwebapp.netlify.app",
+    "https://phishwatchweb.netlify.app",
 ]
 CORS_ALLOW_METHODS = ["GET", "POST", "OPTIONS"]
 CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "Accept", "X-CSRFToken"]
